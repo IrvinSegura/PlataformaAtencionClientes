@@ -1,0 +1,6 @@
+# The repository's docker-compose.yml, so the backend finds the local database whether it starts from backend/
+# (./mvnw spring-boot:run, IntelliJ's module directory) or from the repository root
+name: support-chat-platform
+
+include:
+  - ../docker-compose.yml

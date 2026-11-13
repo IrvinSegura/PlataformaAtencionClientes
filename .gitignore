@@ -1,0 +1,24 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Local secrets and keys
+.env
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontends
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Load test output
+loadtest/results/

@@ -1,0 +1,523 @@
+spring:
+  application:
+    name: support-chat-platform
+  profiles:
+    default: dev
+  docker:
+    compose:
+      # Only the dev profile starts the local database (application-dev.yml)
+      enabled: false
+  servlet:
+    multipart:
+      # KnowledgeLimits.MAX_DOCUMENT_BYTES is the real limit; the request may carry a little more than the file
+      max-file-size: 10MB
+      max-request-size: 11MB
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5450/supportchat}
+    # The application connects with a role that owns no table, so row-level security applies to every query
+    username: ${DB_APP_USER:supportchat_app}
+    password: ${DB_APP_PASSWORD:supportchat_app_dev}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  flyway:
+    locations: classpath:db/migration
+    placeholders:
+      appRole: ${DB_APP_USER:supportchat_app}
+  mvc:
+    problemdetails:
+      enabled: true
+  threads:
+    virtual:
+      # Answers are streamed from the request thread while the language model writes them; virtual threads make a
+      # blocked request cheap, so thousands of open streams don't need thousands of platform threads
+      enabled: true
+  modulith:
+    events:
+      # Events are stored in the transaction that publishes them (outbox); listeners interrupted by a crash run again
+      # on startup, and finished publications are deleted to keep the table small
+      republish-outstanding-events-on-restart: true
+      completion-mode: delete
+      # Flyway owns the event_publication table; the application role has no DDL rights
+      jdbc:
+        schema-initialization:
+          enabled: false
+
+server:
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, modulith
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        supportchat.answer.duration: true
+        supportchat.actions.calls: true
+  # Traces leave over OTLP only when OTEL_EXPORTER_OTLP_ENDPOINT (and OTEL_EXPORTER_OTLP_HEADERS for a hosted
+  # backend such as Grafana Cloud) are set; Spring Boot maps the standard OpenTelemetry variables
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:0.1}
+  opentelemetry:
+    resource-attributes:
+      deployment.environment.name: ${DEPLOYMENT_ENVIRONMENT:local}
+  logging:
+    export:
+      otlp:
+        # Logs stay on stdout; the collector reads them from there
+        enabled: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+logging:
+  pattern:
+    # The trace joins a log line to its trace in Grafana; the correlation id is the one the API answers with
+    correlation: "[%X{traceId:-},%X{spanId:-}] [%X{correlationId:-}] "
+
+supportchat:
+  identity:
+    jwt:
+      issuer: support-chat-platform
+      access-token-ttl: 15m
+      # Real deployments mount an RSA key pair and point these at it; see the README
+      private-key-location: ${JWT_PRIVATE_KEY_LOCATION:}
+      public-key-location: ${JWT_PUBLIC_KEY_LOCATION:}
+      generate-keys-if-missing: false
+    refresh-token-ttl: 14d
+    # An invitation link works once, until this long after it was created
+    invitation-ttl: 7d
+    password-hash-strength: 12
+    lockout:
+      max-failed-attempts: 5
+      duration: 15m
+    # The panel keeps the refresh token in this HttpOnly cookie, never in JavaScript-readable storage
+    refresh-token-cookie:
+      name: supportchat_refresh
+      secure: true
+      same-site: Strict
+  knowledge:
+    embedding:
+      # hashing runs offline with no API key (good enough for development and tests); voyage calls Voyage AI
+      provider: ${EMBEDDING_PROVIDER:hashing}
+      voyage:
+        api-key: ${VOYAGE_API_KEY:}
+        model: voyage-3.5
+        base-url: https://api.voyageai.com
+        timeout: 30s
+    chunking:
+      # Characters, not tokens: about 200 tokens per chunk, small enough to quote precisely
+      max-chunk-chars: 900
+      overlap-chars: 150
+    ingestion:
+      # Documents one instance extracts and embeds at the same time; the rest wait in line, still PENDING
+      max-concurrent: ${INGESTION_MAX_CONCURRENT:4}
+    web:
+      # Longest wait for one imported web page
+      timeout: 20s
+      # Only for development: lets pages on localhost or a private network be imported
+      allow-private-network: false
+    search:
+      # Candidates taken from each retriever before rank fusion
+      candidates-per-retriever: 20
+  conversations:
+    chat-model:
+      # offline answers by quoting the best source, with no API key; anthropic calls the Claude API
+      provider: ${CHAT_MODEL_PROVIDER:offline}
+      anthropic:
+        api-key: ${ANTHROPIC_API_KEY:}
+        # The capable model, for questions that need reasoning, and the cheap one for direct questions
+        model: ${ANTHROPIC_MODEL:claude-sonnet-5-5}
+        simple-model: ${ANTHROPIC_SIMPLE_MODEL:claude-haiku-5-5}
+        # How much each model thinks before answering: low, medium or high
+        simple-effort: low
+        complex-effort: medium
+        base-url: https://api.anthropic.com
+        # Thinking counts towards this limit, so it leaves room for it besides the short answer
+        max-output-tokens: 4096
+        connect-timeout: 5s
+        # Longest wait for the next piece of a streamed answer, not for the whole answer
+        read-timeout: 60s
+    answer:
+      # Sources given to the model for one answer
+      max-sources: 5
+      # Below this cosine similarity a source only counts if it also matched by keyword. Empty uses the embedding
+      # model's own value (0.35 for Voyage, 0.2 for hashing), since each model spreads its scores differently
+      min-similarity: ${ANSWER_MIN_SIMILARITY:}
+      # Earlier messages sent along so follow-up questions make sense
+      history-messages: 6
+      max-message-chars: 2000
+      # A visitor conversation stops accepting questions after this many, which caps what one visitor can spend
+      max-questions-per-conversation: 40
+      # Times the assistant may use the workspace's actions before it must answer
+      max-tool-rounds: 3
+    routing:
+      # Direct questions go to the cheap model and the rest to the capable one; off sends everything to the capable
+      enabled: ${MODEL_ROUTING_ENABLED:true}
+      # When the cheap model finds no answer in relevant sources, ask the capable one once more
+      escalate-no-answer: true
+      # An answer that must combine this many documents goes to the capable model. A document counts when its best
+      # passage is in the top quarter (closeness) between the minimum similarity and the best passage, and once when
+      # it shares most of its words with another (the same text on several pages of a site). Tune them with the
+      # report of answers by model on the Results page
+      several-documents:
+        count: ${ROUTING_SEVERAL_DOCUMENTS:3}
+        closeness: ${ROUTING_DOCUMENT_CLOSENESS:0.25}
+        same-text-overlap: ${ROUTING_SAME_TEXT_OVERLAP:0.6}
+    # A question asked again, word for word and without earlier context, gets the answer the model already wrote, at no
+    # cost. Any change to the documents, the actions or the assistant's name makes the old answers stop being given
+    answer-reuse:
+      enabled: ${ANSWER_REUSE_ENABLED:true}
+      time-to-live: 7d
+    # A customer who writes again through WhatsApp, email, Messenger or Instagram is remembered: the assistant reads
+    # the latest things they asked and were told in earlier conversations. Those answers are never given to others
+    customer-memory:
+      enabled: ${CUSTOMER_MEMORY_ENABLED:true}
+      look-back: ${CUSTOMER_MEMORY_LOOK_BACK:30d}
+      messages: 10
+    # Questions customers found the answers to lacking go straight to the capable model while open. Tune these with the
+    # Results page once there are a few weeks of answers
+    difficult-questions:
+      # The capable model answered it this many times in a row with no sign of difficulty: it closes by itself and the
+      # fast model may try it again (a new sign of difficulty opens it again)
+      answered-well-to-close: ${DIFFICULT_ANSWERED_WELL_TO_CLOSE:3}
+      # Nobody found it difficult again for this long: it closes by itself
+      quiet-period: ${DIFFICULT_QUIET_PERIOD:30d}
+      # Found difficult this many times without being taught: the team is told by WhatsApp, once
+      alert-after: ${DIFFICULT_ALERT_AFTER:5}
+      # Cosine similarity from which two questions mean the same. Empty uses the embedding model's own value (0.8 for
+      # Voyage, 0.9 for hashing, which sees only shared words)
+      same-question-similarity: ${DIFFICULT_SAME_QUESTION_SIMILARITY:}
+    # List prices in US dollars per million tokens, to show what each playground answer cost. Keep them in line with
+    # https://www.anthropic.com/pricing when models change; a model missing here simply shows no estimate
+    model-prices:
+      "[claude-sonnet-5-5]": {input: 2.00, output: 10.00}
+      "[claude-haiku-5-5]": {input: 0.10, output: 0.50}
+      "[claude-opus-5-5]": {input: 4.00, output: 20.00}
+      "[offline-extractive]": {input: 0, output: 0}
+    # The model answers in the customer's language by itself; these texts the platform words itself follow the
+    # conversation's language (the browser's preference, then the customer's messages), or this one until it is known
+    default-language: es
+    replies:
+      es:
+        no-answer: >-
+          No tengo información suficiente para responder eso. ¿Quieres que te comunique con una persona del equipo?
+        failure: Lo siento, no pude responder en este momento. Inténtalo de nuevo en unos minutos.
+        confirm-prompt: Para continuar, confirma la acción.
+        done: Listo, la acción se completó.
+        failed: >-
+          Lo siento, no pude completar la acción en este momento. ¿Quieres que te comunique con una persona del
+          equipo?
+        cancelled: De acuerdo, no hice ningún cambio.
+        expired: La confirmación caducó y no hice ningún cambio. Si aún lo necesitas, pídemelo de nuevo.
+        greeting: ¡Hola! 👋 ¿En qué te puedo ayudar?
+        thanks: ¡Con gusto! Si necesitas algo más, aquí estoy.
+        goodbye: ¡Hasta pronto! Aquí estaré si necesitas algo más.
+        acknowledged: ¡Perfecto! Si tienes otra pregunta, escríbela cuando quieras.
+      en:
+        no-answer: >-
+          I don't have enough information to answer that. Would you like me to put you in touch with someone from the
+          team?
+        failure: Sorry, I couldn't answer right now. Please try again in a few minutes.
+        confirm-prompt: To continue, please confirm the action.
+        done: Done, the action was completed.
+        failed: >-
+          Sorry, I couldn't complete the action right now. Would you like me to put you in touch with someone from the
+          team?
+        cancelled: All right, I didn't change anything.
+        expired: The confirmation expired and I didn't change anything. If you still need it, just ask me again.
+        greeting: Hi! 👋 How can I help you?
+        thanks: You're welcome! If you need anything else, I'm here.
+        goodbye: See you soon! I'll be here if you need anything else.
+        acknowledged: Great! If you have another question, just write it whenever you like.
+      pt:
+        no-answer: Não tenho informações suficientes para responder a isso. Quer que eu chame uma pessoa da equipe?
+        failure: Desculpe, não consegui responder agora. Tente novamente em alguns minutos.
+        confirm-prompt: Para continuar, confirme a ação.
+        done: Pronto, a ação foi concluída.
+        failed: Desculpe, não consegui concluir a ação agora. Quer que eu chame uma pessoa da equipe?
+        cancelled: Tudo bem, não fiz nenhuma alteração.
+        expired: A confirmação expirou e não fiz nenhuma alteração. Se ainda precisar, é só pedir de novo.
+        greeting: Olá! 👋 Como posso ajudar?
+        thanks: Por nada! Se precisar de mais alguma coisa, estou aqui.
+        goodbye: Até logo! Estarei aqui se precisar de mais alguma coisa.
+        acknowledged: Perfeito! Se tiver outra pergunta, é só escrever.
+      fr:
+        no-answer: >-
+          Je n'ai pas assez d'informations pour répondre à cela. Voulez-vous que je vous mette en contact avec une
+          personne de l'équipe ?
+        failure: Désolé, je n'ai pas pu répondre pour le moment. Réessayez dans quelques minutes.
+        confirm-prompt: Pour continuer, confirmez l'action.
+        done: C'est fait, l'action a été effectuée.
+        failed: >-
+          Désolé, je n'ai pas pu effectuer l'action pour le moment. Voulez-vous que je vous mette en contact avec une
+          personne de l'équipe ?
+        cancelled: D'accord, je n'ai rien modifié.
+        expired: >-
+          La confirmation a expiré et je n'ai rien modifié. Si vous en avez encore besoin, demandez-le-moi à nouveau.
+        greeting: Bonjour ! 👋 Comment puis-je vous aider ?
+        thanks: Avec plaisir ! Si vous avez besoin d'autre chose, je suis là.
+        goodbye: À bientôt ! Je serai là si vous avez besoin d'autre chose.
+        acknowledged: Parfait ! Si vous avez une autre question, écrivez-la quand vous voulez.
+    # Anonymous visitors prove they own a conversation with this token; it expires with inactivity
+    visitor-token-ttl: 24h
+  actions:
+    # A proposed action that changes something waits this long for the visitor to confirm it
+    confirmation-ttl: 15m
+    connect-timeout: 3s
+    # The whole call to a business's webhook, while the visitor waits for the answer
+    request-timeout: 10s
+    # Only the start of a webhook's answer is read and given to the model
+    max-response-bytes: 16384
+    # Webhooks must be public https services; development and tests relax this to reach local servers
+    allow-insecure-http: false
+    allow-private-network: false
+    # Ready-made integrations: the address is built from each workspace's store or subdomain
+    integrations:
+      shopify-url: https://{store}
+      shopify-api-version: ${SHOPIFY_API_VERSION:2025-07}
+      zendesk-url: https://{subdomain}.zendesk.com
+  channels:
+    whatsapp:
+      # WhatsApp Cloud API (Meta Graph API)
+      graph-base-url: ${WHATSAPP_GRAPH_BASE_URL:https://graph.facebook.com/v23.0}
+      connect-timeout: 5s
+      request-timeout: 15s
+      # The operator panel, linked from the WhatsApp alerts sent to the owner when a customer needs a person
+      panel-url: ${PANEL_URL:http://localhost:5173}
+    meta:
+      # Messenger and Instagram through the Messenger Platform (Meta Graph API)
+      graph-base-url: ${META_GRAPH_BASE_URL:https://graph.facebook.com/v23.0}
+      connect-timeout: 5s
+      request-timeout: 15s
+    email:
+      # Every connected mailbox is read over IMAP this often; replies leave over SMTP right away
+      read-delay: PT1M
+      max-per-read: 20
+      connect-timeout: 10s
+      read-timeout: 30s
+      # Mail servers are reached over TLS and must be public hosts; development and tests relax this
+      tls: true
+      allow-private-network: false
+  billing:
+    currency: USD
+    # Workspaces that never paid, or whose payments stopped, are on this plan
+    free-plan: FREE
+    # A paid plan keeps working this long after a payment fails, while Stripe retries the charge
+    grace-period: 7d
+    # The panel's billing page, where Stripe's checkout and portal send people back
+    return-url: ${BILLING_RETURN_URL:http://localhost:5173/billing}
+    # How often usage past the included quantities is reported to Stripe's meters (UTC)
+    usage-report-cron: "0 */15 * * * *"
+    # Included quantities are per calendar month (UTC). A limited metric without an overage price stops at its limit:
+    # past it the assistant hands conversations to the team, actions are refused and WhatsApp messages go unanswered.
+    # Prices are examples: set them to your rates, and keep them in line with the Stripe prices (scripts/stripe-setup.sh)
+    plans:
+      FREE:
+        name: Gratis
+        monthly-price: 0
+        included:
+          ANSWERS: 100
+          ACTION_RUNS: 50
+          WHATSAPP_MESSAGES: 100
+      STARTER:
+        name: Inicial
+        monthly-price: 29
+        included:
+          ANSWERS: 2000
+          ACTION_RUNS: 500
+          WHATSAPP_MESSAGES: 2000
+        overage-prices:
+          ANSWERS: 0.02
+          ACTION_RUNS: 0.01
+          WHATSAPP_MESSAGES: 0.01
+      PRO:
+        name: Profesional
+        monthly-price: 99
+        included:
+          ANSWERS: 10000
+          ACTION_RUNS: 3000
+          WHATSAPP_MESSAGES: 10000
+        overage-prices:
+          ANSWERS: 0.015
+          ACTION_RUNS: 0.008
+          WHATSAPP_MESSAGES: 0.008
+    # Recharges paid once: extra units for the calendar month they are paid in (UTC), offered to plans that stop at
+    # that metric's limit. Each one needs a one-time Stripe price with lookup key supportchat_topup_<code>, in lower
+    # case (scripts/stripe-setup.sh creates them); keep the prices in line with Stripe's
+    top-ups:
+      ANSWERS_500:
+        name: 500 respuestas extra
+        metric: ANSWERS
+        quantity: 500
+        price: 10
+      ANSWERS_2000:
+        name: 2000 respuestas extra
+        metric: ANSWERS
+        quantity: 2000
+        price: 35
+      ACTION_RUNS_200:
+        name: 200 acciones extra
+        metric: ACTION_RUNS
+        quantity: 200
+        price: 4
+      WHATSAPP_MESSAGES_500:
+        name: 500 mensajes de WhatsApp extra
+        metric: WHATSAPP_MESSAGES
+        quantity: 500
+        price: 5
+    stripe:
+      # Both empty: payments are off and every workspace is on the free plan
+      secret-key: ${STRIPE_SECRET_KEY:}
+      webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+      base-url: https://api.stripe.com
+      connect-timeout: 3s
+      request-timeout: 15s
+      # Prices are found by lookup key: supportchat_<plan>, supportchat_<plan>_<metric> and supportchat_topup_<code>,
+      # in lower case
+      lookup-key-prefix: supportchat
+      meter-events:
+        ANSWERS: supportchat_answers
+        ACTION_RUNS: supportchat_action_runs
+        WHATSAPP_MESSAGES: supportchat_whatsapp_messages
+      signature-tolerance: 5m
+      price-cache-ttl: 10m
+  secrets:
+    # Encrypts stored secrets (webhook signing keys, channel tokens, mailbox passwords). Base64 of 32 random bytes: openssl rand -base64 32
+    encryption-key: ${SECRETS_ENCRYPTION_KEY:}
+  legal:
+    # Named on the public privacy policy at /legal/privacidad, the URL Meta asks for before an app goes live
+    operator-name: ${LEGAL_OPERATOR_NAME:Plataforma de Atención al Cliente}
+    # Where people ask about their data or ask for it to be deleted
+    contact-email: ${LEGAL_CONTACT_EMAIL:}
+    # The terms of service at /legal/terminos. Change the version along with resources/legal/terminos.html: every
+    # operator is asked in the panel to accept the new terms
+    terms-version: ${LEGAL_TERMS_VERSION:2026-11-11}
+    terms-updated: ${LEGAL_TERMS_UPDATED:11 de noviembre de 2026}
+    # Completes "Estos términos se rigen por ..."
+    jurisdiction: ${LEGAL_JURISDICTION:las leyes de los Estados Unidos Mexicanos, y cualquier controversia se resolverá ante los tribunales competentes de la Ciudad de México}
+  demo:
+    # The workspace behind the public demo (/demo), seeded with scripts/seed-demo.sh; empty runs no demo. It always
+    # answers with ANTHROPIC_SIMPLE_MODEL and stops for the day after daily-answers answers
+    workspace-id: ${DEMO_WORKSPACE_ID:}
+    daily-answers: ${DEMO_DAILY_ANSWERS:300}
+  platform:
+    # Ids of the users who run the platform (comma separated): they see every workspace and can suspend one. Ids, not
+    # e-mails, because sign-up does not prove an address; GET /api/v1/me shows a user's id
+    admin-user-ids: ${PLATFORM_ADMIN_USER_IDS:}
+  web:
+    cors:
+      # Origins of the operator panel, comma-separated. Widget origins are configured per workspace
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  rate-limit:
+    enabled: true
+    # The first matching rule wins. Buckets refill gradually: 20 per minute is one every 3 seconds
+    rules:
+      - name: auth
+        methods: [POST]
+        paths: [/api/v1/auth/**]
+        key: ip
+        capacity: 20
+        period: 1m
+      # Each attempt hashes a password, and guessing tokens must stay hopeless
+      - name: invitations
+        methods: [POST]
+        paths: [/api/v1/invitations/**]
+        key: ip
+        capacity: 10
+        period: 1m
+      # A new conversation is cheap but each one allows max-questions-per-conversation questions
+      - name: widget-conversations-per-ip
+        methods: [POST]
+        paths: [/api/v1/widget/*/conversations]
+        key: ip
+        capacity: 10
+        period: 10m
+      # The public demo answers anyone on the platform's account: a visitor gets a few questions, not a quota
+      - name: demo-questions-per-ip
+        methods: [POST]
+        paths:
+          - "/api/v1/widget/${DEMO_WIDGET_KEY:no-demo}/conversations/*/messages"
+        key: ip
+        capacity: 8
+        period: 10m
+      - name: widget-questions-per-ip
+        methods: [POST]
+        paths: [/api/v1/widget/*/conversations/*/messages]
+        key: ip
+        capacity: 20
+        period: 1m
+      # Stripe retries failed deliveries; this only stops a flood of forged ones, which fail the signature anyway
+      - name: stripe-webhook
+        methods: [POST]
+        paths: [/api/v1/billing/stripe/webhook]
+        key: ip
+        capacity: 600
+        period: 1m
+      # Confirming runs a webhook of the business
+      - name: widget-action-responses-per-ip
+        methods: [POST]
+        paths: [/api/v1/widget/*/conversations/*/actions/**]
+        key: ip
+        capacity: 20
+        period: 1m
+      - name: widget-feedback-per-ip
+        methods: [PUT]
+        paths: [/api/v1/widget/*/conversations/*/rating, /api/v1/widget/*/conversations/*/messages/*/feedback]
+        key: ip
+        capacity: 30
+        period: 1m
+      # Meta delivers from a few addresses for every business, so the limit only stops floods
+      - name: meta-webhooks
+        paths: [/api/v1/channels/whatsapp/*/webhook, /api/v1/channels/messenger/*/webhook,
+                /api/v1/channels/instagram/*/webhook]
+        key: ip
+        capacity: 1200
+        period: 1m
+      - name: widget-per-workspace
+        paths: [/api/v1/widget/**]
+        key: widget
+        capacity: 600
+        period: 1m
+      # Each upload is parsed and embedded, the most expensive thing an operator can trigger
+      - name: document-uploads
+        methods: [POST]
+        paths: [/api/v1/knowledge/documents, /api/v1/knowledge/documents/*/reprocess]
+        key: user
+        capacity: 30
+        period: 10m
+      # Every playground question calls the language model, like a customer's
+      - name: playground
+        methods: [POST]
+        paths: [/api/v1/playground/**]
+        key: user
+        capacity: 20
+        period: 1m
+      # A site import downloads up to 31 pages and embeds them all
+      - name: web-imports
+        methods: [POST]
+        paths: [/api/v1/knowledge/documents/web]
+        key: user
+        capacity: 10
+        period: 10m
+      - name: api
+        paths: [/api/**]
+        key: user
+        capacity: 300
+        period: 1m

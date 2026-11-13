@@ -1,0 +1,24 @@
+# Build stage: dependencies are resolved in their own layer so code changes don't re-download them. It runs on the
+# builder's own platform: bytecode is the same everywhere, so an arm64 image (Oracle's Ampere VMs) is not compiled
+# under emulation
+FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk AS build
+WORKDIR /workspace
+COPY .mvn .mvn
+COPY mvnw pom.xml ./
+RUN chmod +x mvnw && ./mvnw -B -q dependency:go-offline
+COPY src src
+RUN ./mvnw -B -q package -DskipTests \
+    && java -Djarmode=tools -jar target/*.jar extract --layers --launcher --destination target/extracted
+
+# Runtime stage: JRE only, non-root user, one layer per dependency group for cache-friendly rebuilds
+FROM eclipse-temurin:25-jre
+RUN groupadd --system supportchat && useradd --system --gid supportchat --uid 10001 supportchat
+WORKDIR /app
+COPY --from=build /workspace/target/extracted/dependencies/ ./
+COPY --from=build /workspace/target/extracted/spring-boot-loader/ ./
+COPY --from=build /workspace/target/extracted/snapshot-dependencies/ ./
+COPY --from=build /workspace/target/extracted/application/ ./
+USER supportchat
+# 8080 serves the API and the widget; 8081 serves actuator (health probes, metrics) in production and must stay private
+EXPOSE 8080 8081
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "org.springframework.boot.loader.launch.JarLauncher"]

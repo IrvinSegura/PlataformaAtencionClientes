@@ -1,0 +1,135 @@
+# Alert rules in Prometheus format. Grafana Cloud imports them in Alerting -> Alert rules -> Import, or loads them
+# into its hosted Prometheus with
+#   mimirtool rules load docker/monitoring/alerts.yml --address=<Prometheus URL without /push> --id=<user> --key=<token>
+# Grafana Alerting sends them to its contact points (email, Slack, Telegram...).
+# Check them locally with: docker run --rm -v "$PWD/docker/monitoring:/m" --entrypoint promtool prom/prometheus check rules /m/alerts.yml
+groups:
+  - name: support-chat-availability
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend"} == 0 or absent(up{job="backend"})
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: The backend does not answer the metrics scrape
+          description: Alloy has not reached backend:8081 for 3 minutes. Check `docker compose ps` and the backend's logs.
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="backend", status=~"5.."}[5m]))
+            / sum(rate(http_server_requests_seconds_count{job="backend"}[5m])) > 0.05
+          and sum(rate(http_server_requests_seconds_count{job="backend"}[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 5% of the requests fail with a 5xx
+          description: "{{ $value | humanizePercentage }} of the requests failed in the last 5 minutes."
+
+      - alert: DatabasePoolExhausted
+        expr: max(hikaricp_connections_pending{job="backend"}) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Requests are waiting for a database connection
+          description: Raise DB_POOL_SIZE or look for slow queries; the pool has had waiting threads for 5 minutes.
+
+  - name: support-chat-assistant
+    rules:
+      - alert: AnswersFailing
+        expr: |
+          sum(rate(supportchat_answer_duration_seconds_count{outcome="FAILED"}[10m]))
+            / sum(rate(supportchat_answer_duration_seconds_count[10m])) > 0.1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 10% of the answers fail
+          description: The language model or the search is failing. Check the Anthropic and Voyage status and the API keys.
+
+      - alert: SlowAnswers
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(supportchat_answer_duration_seconds_bucket[10m]))) > 20
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: The slowest 5% of the answers take more than 20 s
+          description: "p95: {{ $value | humanizeDuration }}. Open a slow trace in Grafana (Explore → Tempo) to see where the time goes."
+
+      - alert: TokenSpike
+        expr: sum(increase(supportchat_llm_tokens_total[1h])) > 2e6
+        labels:
+          severity: warning
+        annotations:
+          summary: More than 2 million language model tokens in an hour
+          description: Possible abuse of a widget or a loop. Each workspace's usage is in its Consumo page; adjust the threshold to your traffic.
+
+  - name: support-chat-integrations
+    rules:
+      - alert: ActionCallsFailing
+        expr: |
+          sum by (target) (rate(supportchat_actions_calls_seconds_count{outcome!="success"}[15m]))
+            / sum by (target) (rate(supportchat_actions_calls_seconds_count[15m])) > 0.25
+          and sum by (target) (increase(supportchat_actions_calls_seconds_count[15m])) >= 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Calls to {{ $labels.target }} keep failing"
+          description: A webhook of a business or an integration's API (Shopify, Zendesk) answers errors or is unreachable.
+
+      - alert: RepliesNotDelivered
+        expr: |
+          sum by (channel) (increase(supportchat_channel_deliveries_total{outcome!="sent"}[30m]))
+            / sum by (channel) (increase(supportchat_channel_deliveries_total[30m])) > 0.2
+          and sum by (channel) (increase(supportchat_channel_deliveries_total[30m])) >= 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Replies on {{ $labels.channel }} are not reaching customers"
+          description: Over 20% of the replies were refused or are being retried. A token may have expired or a provider may be down.
+
+      - alert: MailboxesUnreadable
+        expr: sum(increase(supportchat_channel_mailbox_reads_total{outcome="failure"}[30m])) >= 30
+        labels:
+          severity: warning
+        annotations:
+          summary: Mailboxes keep failing to be read
+          description: Each workspace sees its own error in the panel; many failures together point to the platform or the provider.
+
+  - name: support-chat-abuse
+    rules:
+      - alert: RateLimitStorm
+        expr: sum(rate(supportchat_rate_limit_rejections_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Many requests are being rate limited
+          description: "{{ $value | humanize }} rejections per second: possibly a brute force attack or a misbehaving client."
+
+  - name: support-chat-host
+    rules:
+      - alert: DiskAlmostFull
+        expr: |
+          node_filesystem_avail_bytes{job="host", mountpoint="/", fstype!~"tmpfs|overlay"}
+            / node_filesystem_size_bytes{job="host", mountpoint="/", fstype!~"tmpfs|overlay"} < 0.15
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Less than 15% of the disk is free
+          description: PostgreSQL stops when the disk fills up. Remove old images (`docker image prune`) or grow the volume.
+
+      - alert: MemoryAlmostExhausted
+        expr: node_memory_MemAvailable_bytes{job="host"} / node_memory_MemTotal_bytes{job="host"} < 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Less than 10% of the memory is available
+          description: Lower the backend's heap (JAVA_TOOL_OPTIONS) or the database's shared_buffers before the kernel kills a process.

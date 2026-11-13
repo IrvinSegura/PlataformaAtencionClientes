@@ -1,0 +1,65 @@
+# Local development. The backend run from the IDE or with `./mvnw spring-boot:run` in backend/ starts the database
+# itself; `docker compose up -d` starts it by hand. `docker compose --profile app up -d --build` also runs the backend
+# in a container.
+name: support-chat-platform
+
+services:
+  db:
+    # PostgreSQL with pgvector, the same image the integration tests use
+    image: pgvector/pgvector:pg17
+    labels:
+      # The backend started from the IDE runs `docker compose up` itself (application-dev.yml) but keeps its own
+      # datasource: Boot's automatic connection would use POSTGRES_USER, the owner, which bypasses row-level security
+      org.springframework.boot.ignore: "true"
+    environment:
+      POSTGRES_DB: supportchat
+      POSTGRES_USER: ${DB_OWNER_USER:-supportchat_owner}
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:-supportchat_owner_dev}
+      DB_APP_USER: ${DB_APP_USER:-supportchat_app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-supportchat_app_dev}
+    ports:
+      # Only reachable from this machine
+      - "127.0.0.1:5450:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d supportchat"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    profiles: [app]
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The dev profile generates a JWT key pair on start and allows the panel on http://localhost:5173
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://db:5432/supportchat
+      DB_OWNER_USER: ${DB_OWNER_USER:-supportchat_owner}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD:-supportchat_owner_dev}
+      DB_APP_USER: ${DB_APP_USER:-supportchat_app}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:-supportchat_app_dev}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-hashing}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      CHAT_MODEL_PROVIDER: ${CHAT_MODEL_PROVIDER:-offline}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      ANTHROPIC_SIMPLE_MODEL: ${ANTHROPIC_SIMPLE_MODEL:-claude-haiku-5-5}
+      MODEL_ROUTING_ENABLED: ${MODEL_ROUTING_ENABLED:-true}
+      # Same development key as application-dev.yml; an empty value would override it
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-ZGV2LW9ubHktc2VjcmV0cy1rZXktMzItYnl0ZXMhISE=}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      BILLING_RETURN_URL: ${BILLING_RETURN_URL:-http://localhost:5173/billing}
+      PANEL_URL: ${PANEL_URL:-http://localhost:5173}
+      LEGAL_OPERATOR_NAME: ${LEGAL_OPERATOR_NAME:-}
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  db-data:
