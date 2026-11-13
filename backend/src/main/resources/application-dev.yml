@@ -1,0 +1,45 @@
+# Local development: Flyway migrates as the schema owner, the application connects as the restricted role
+spring:
+  config:
+    # Runs from the IDE read the same gitignored .env as docker compose (in backend/ or the repository root);
+    # real environment variables still win
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
+  flyway:
+    user: ${DB_OWNER_USER:supportchat_owner}
+    password: ${DB_OWNER_PASSWORD:supportchat_owner_dev}
+  docker:
+    compose:
+      # Started from the IDE or with spring-boot:run, the database comes up first and stays up after the application
+      # stops. The compose file is looked up in the working directory: docker-compose.yml at the repository root, or
+      # backend/compose.yaml, which includes it. DOCKER_COMPOSE_ENABLED=false skips it, e.g. with a database elsewhere
+      enabled: ${DOCKER_COMPOSE_ENABLED:true}
+      lifecycle-management: start-only
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+supportchat:
+  identity:
+    jwt:
+      # A new key pair on every start: tokens stop working after a restart, which is fine locally
+      generate-keys-if-missing: true
+    refresh-token-cookie:
+      # The panel runs on http://localhost during development
+      secure: false
+  web:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  knowledge:
+    web:
+      # Pages served on this machine can be imported
+      allow-private-network: true
+  actions:
+    # Lets actions call webhooks running on this machine
+    allow-insecure-http: true
+    allow-private-network: true
+  secrets:
+    # A fixed development key; never use it anywhere real
+    encryption-key: ${SECRETS_ENCRYPTION_KEY:ZGV2LW9ubHktc2VjcmV0cy1rZXktMzItYnl0ZXMhISE=}

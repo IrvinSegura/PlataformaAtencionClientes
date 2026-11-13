@@ -1,0 +1,29 @@
+# Production: every secret comes from the environment and nothing falls back to a development value
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_APP_USER}
+    password: ${DB_APP_PASSWORD}
+  flyway:
+    user: ${DB_OWNER_USER}
+    password: ${DB_OWNER_PASSWORD}
+
+server:
+  # Behind a TLS-terminating proxy: the client's address and scheme come from X-Forwarded-* set by that proxy only
+  forward-headers-strategy: native
+
+management:
+  # Actuator on its own port, which must stay inside the private network
+  server:
+    port: ${MANAGEMENT_PORT:8081}
+
+supportchat:
+  identity:
+    jwt:
+      private-key-location: ${JWT_PRIVATE_KEY_LOCATION}
+      public-key-location: ${JWT_PUBLIC_KEY_LOCATION}
+  web:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  secrets:
+    encryption-key: ${SECRETS_ENCRYPTION_KEY}
