@@ -1,0 +1,8 @@
+* text=auto
+# Scripts run inside Linux containers and CI: they must keep LF endings even when checked out on Windows
+*.sh text eol=lf
+backend/mvnw text eol=lf
+# Copied as they are to the Linux server (systemd units, Caddyfile, compose, collector configuration)
+deploy/** text eol=lf
+docker/** text eol=lf
+*.cmd text eol=crlf
