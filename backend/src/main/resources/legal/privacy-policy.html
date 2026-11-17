@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+<title>Política de privacidad · {{operator}}</title>
+<style>
+  :root { color-scheme: light dark; --text: #0f172a; --muted: #475569; --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; --accent: #1f5af0; }
+  @media (prefers-color-scheme: dark) { :root { --text: #e2e8f0; --muted: #94a3b8; --bg: #0b1120; --card: #111827; --border: #1f2937; --accent: #7aa2ff; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 28px; }
+  .eyebrow { color: var(--accent); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 6px; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0 0 8px; }
+  h2 { font-size: 1.15rem; margin: 36px 0 8px; scroll-margin-top: 16px; }
+  p, li { color: var(--text); }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+  ul { padding-left: 1.25rem; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin: 16px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  footer { margin-top: 48px; border-top: 1px solid var(--border); padding-top: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">{{operator}}</p>
+    <h1>Política de privacidad</h1>
+    <p class="muted">Última actualización: {{updated}}</p>
+  </header>
+
+  <p>
+    {{operator}} ofrece una plataforma con la que las empresas atienden a sus clientes con un asistente de inteligencia
+    artificial en su sitio web, WhatsApp, Messenger, Instagram y correo, y pasan la conversación a una persona de su
+    equipo cuando hace falta. Esta política explica qué datos tratamos, para qué, con quién los compartimos y cómo
+    puedes pedir que se eliminen.
+  </p>
+
+  <div class="card">
+    <strong>Si escribiste a una empresa que usa esta plataforma:</strong> esa empresa decide para qué usa tu
+    conversación y es la responsable de tus datos; nosotros los tratamos por encargo suyo, solo para atenderte. Puedes
+    dirigirte a ella o a nosotros con los datos de contacto del final.
+  </div>
+
+  <h2 id="responsable">1. Quién es responsable</h2>
+  <p>
+    Para los datos de las cuentas de las empresas (sus usuarios, su plan y su facturación), el responsable es
+    {{operator}}. Para los datos de los clientes que escriben a cada empresa, la responsable es esa empresa y
+    {{operator}} actúa como encargado del tratamiento.
+  </p>
+
+  <h2 id="datos">2. Qué datos tratamos</h2>
+  <ul>
+    <li><strong>De los clientes que escriben a una empresa:</strong> el contenido de los mensajes, el identificador del
+      canal (el número de WhatsApp, el identificador de Messenger o Instagram, o la dirección de correo), el nombre que
+      muestra su perfil, el idioma en que escribe, las acciones que pide (por ejemplo, consultar un pedido) y las
+      valoraciones que deja sobre las respuestas.</li>
+    <li><strong>De los visitantes del sitio web</strong> que usan el chat: lo que escriben, el sitio desde el que
+      escriben y un identificador aleatorio de su conversación guardado en su navegador. No usamos cookies de
+      publicidad ni de seguimiento.</li>
+    <li><strong>De las empresas y su equipo:</strong> nombre, correo electrónico, contraseña (guardada solo como hash),
+      rol, los documentos que suben a su base de conocimiento, la configuración de sus canales y su consumo del plan.
+      Los pagos los procesa Stripe; no guardamos números de tarjeta.</li>
+    <li><strong>Datos técnicos:</strong> la dirección IP y la hora de cada solicitud, para limitar abusos y mantener la
+      seguridad del servicio.</li>
+  </ul>
+
+  <h2 id="finalidades">3. Para qué los usamos</h2>
+  <ul>
+    <li>Responder las preguntas de los clientes con la información que cada empresa cargó, y ejecutar las acciones que
+      el cliente confirma.</li>
+    <li>Pasar la conversación a una persona del equipo cuando el cliente lo pide o se nota molesto, y avisar por
+      WhatsApp a quien la empresa indicó.</li>
+    <li>Mostrar a la empresa sus conversaciones, sus resultados y su consumo, y cobrar su plan.</li>
+    <li>Proteger el servicio, detectar abusos y corregir errores.</li>
+  </ul>
+  <p>
+    No vendemos datos personales, no los usamos para publicidad y no los usamos para entrenar modelos de inteligencia
+    artificial.
+  </p>
+
+  <h2 id="terceros">4. Con quién los compartimos</h2>
+  <p>Solo con los proveedores que necesitamos para dar el servicio, cada uno para su función:</p>
+  <table>
+    <thead><tr><th>Proveedor</th><th>Para qué</th></tr></thead>
+    <tbody>
+      <tr><td>Anthropic (Claude)</td><td>Redactar las respuestas del asistente a partir de la pregunta y de los documentos de la empresa.</td></tr>
+      <tr><td>Voyage AI</td><td>Buscar en la base de conocimiento de la empresa los fragmentos que responden la pregunta.</td></tr>
+      <tr><td>Meta (WhatsApp, Messenger, Instagram)</td><td>Recibir los mensajes de los clientes y enviarles las respuestas por esos canales.</td></tr>
+      <tr><td>El proveedor de correo de cada empresa</td><td>Leer y responder los correos de su buzón de atención, cuando la empresa lo conecta.</td></tr>
+      <tr><td>Shopify y Zendesk</td><td>Consultar pedidos o crear tickets, solo cuando la empresa conecta esas integraciones y el cliente lo pide.</td></tr>
+      <tr><td>Stripe</td><td>Cobrar el plan de las empresas.</td></tr>
+      <tr><td>Proveedores de infraestructura</td><td>Alojar el servicio y sus respaldos cifrados, y medir su funcionamiento con métricas que no identifican a nadie.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    También podemos revelar datos cuando una autoridad competente lo exija conforme a la ley.
+  </p>
+
+  <h2 id="whatsapp">5. Datos de las plataformas de Meta</h2>
+  <p>
+    Los datos que recibimos de WhatsApp, Messenger e Instagram (mensajes, identificadores y nombre de perfil) se usan
+    solo para atender al cliente en nombre de la empresa a la que escribió, conforme a las Condiciones de la Plataforma
+    de Meta. No los combinamos con otras fuentes ni los compartimos con terceros fuera de los indicados arriba.
+  </p>
+
+  <h2 id="conservacion">6. Cuánto tiempo los conservamos</h2>
+  <p>
+    Mientras la empresa mantenga su cuenta. Si la empresa elimina su cuenta o pide la eliminación de un cliente, los
+    datos se borran de la base de datos y desaparecen de los respaldos cifrados cuando estos se renuevan.
+  </p>
+
+  <h2 id="seguridad">7. Cómo los protegemos</h2>
+  <ul>
+    <li>Todas las conexiones viajan cifradas con TLS.</li>
+    <li>Los datos de cada empresa están aislados de los de las demás en la propia base de datos.</li>
+    <li>Las contraseñas se guardan como hash, y los tokens de los canales e integraciones, cifrados.</li>
+    <li>Solo las personas del equipo de cada empresa, con su propia cuenta, ven sus conversaciones.</li>
+  </ul>
+
+  <h2 id="derechos">8. Tus derechos</h2>
+  <p>
+    Puedes pedir acceso a tus datos, su corrección, su eliminación u oponerte a su uso, además de los demás derechos
+    que te reconozca la ley de tu país (por ejemplo, los derechos ARCO en México o los del RGPD en la Unión Europea).
+    Si eres cliente de una empresa que usa la plataforma, puedes dirigirte a ella o a nosotros; si nos escribes a
+    nosotros, se lo haremos saber.
+  </p>
+
+  <h2 id="eliminacion">9. Cómo pedir que se eliminen tus datos</h2>
+  <ol>
+    <li>Escríbenos a {{contact}} con el asunto <em>“Eliminar mis datos”</em>.</li>
+    <li>Indica el canal por el que escribiste (WhatsApp, Messenger, Instagram, correo o el chat de un sitio web), el
+      nombre de la empresa y, según el canal, tu número de WhatsApp, tu nombre de perfil o tu dirección de correo.</li>
+    <li>Confirmaremos que la solicitud es tuya y eliminaremos tus conversaciones y datos de contacto en un plazo máximo
+      de 30 días, avisándote cuando esté hecho.</li>
+  </ol>
+
+  <h2 id="menores">10. Menores de edad</h2>
+  <p>
+    El servicio está dirigido a empresas y no está pensado para menores de edad. Si crees que un menor nos dio datos,
+    escríbenos y los eliminaremos.
+  </p>
+
+  <h2 id="cambios">11. Cambios a esta política</h2>
+  <p>
+    Si cambiamos esta política, publicaremos la nueva versión en esta misma dirección con su fecha de actualización.
+    Si el cambio es importante, avisaremos a las empresas en su cuenta.
+  </p>
+
+  <h2 id="contacto">12. Contacto</h2>
+  <p>Para cualquier duda sobre esta política o tus datos: {{contact}}.</p>
+
+  <footer class="muted">{{operator}} · Política de privacidad · <a href="/legal/terms">Términos y condiciones</a></footer>
+</main>
+</body>
+</html>
