@@ -1,6 +1,7 @@
 package com.irvinsegura.supportchat.knowledge;
 
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A passage found for a question.
@@ -10,6 +11,6 @@ import java.util.UUID;
  * @param keywordMatch whether the passage contains words of the question
  * @param score        fused rank score; only meaningful for ordering matches of the same search
  */
-public record KnowledgeMatch(UUID chunkId, UUID documentId, String documentTitle, String content, Double similarity,
-        boolean keywordMatch, double score) {
+public record KnowledgeMatch(UUID chunkId, UUID documentId, String documentTitle, String content,
+        @Nullable Double similarity, boolean keywordMatch, double score) {
 }

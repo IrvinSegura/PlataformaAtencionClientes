@@ -8,6 +8,9 @@ import java.util.UUID;
  */
 public interface TaughtAnswers {
 
+    // Long enough for a policy with its exceptions, short enough to stay one passage the search finds whole
+    int MAX_ANSWER_CHARS = 4000;
+
     /**
      * Adds the answer to the current workspace's knowledge base; it is searchable once processed, in a few seconds.
      *
