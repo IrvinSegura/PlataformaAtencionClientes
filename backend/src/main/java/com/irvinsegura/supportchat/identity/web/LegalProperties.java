@@ -1,4 +1,4 @@
-package com.irvinsegura.supportchat.shared.web;
+package com.irvinsegura.supportchat.identity.web;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

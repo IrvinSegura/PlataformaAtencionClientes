@@ -6,12 +6,13 @@ import com.irvinsegura.supportchat.workspaces.domain.model.Workspace;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 /**
  * @param suspension why whoever runs the platform suspended the workspace, or null while it is not
  */
 public record WorkspaceView(UUID id, String name, String widgetKey, List<String> allowedOrigins, String botName,
-        String welcomeMessage, Instant createdAt, WorkspaceSuspension suspension) {
+        String welcomeMessage, Instant createdAt, @Nullable WorkspaceSuspension suspension) {
 
     static WorkspaceView of(Workspace workspace, WorkspaceSuspension suspension) {
         return new WorkspaceView(workspace.id(), workspace.name(), workspace.widgetKey().value(),

@@ -1,4 +1,4 @@
-package com.irvinsegura.supportchat.shared.web;
+package com.irvinsegura.supportchat.workspaces.web;
 
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;

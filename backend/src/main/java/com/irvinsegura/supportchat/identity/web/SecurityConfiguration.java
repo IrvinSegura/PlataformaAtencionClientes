@@ -102,12 +102,14 @@ class SecurityConfiguration {
         return registration;
     }
 
-    // Spring Boot publishes local.management.port once a separate management server starts (prod); without one
-    // (dev, tests) the path is never matched here
-    private static RequestMatcher onManagementPort(Environment environment, String path) {
+    // Only a separate management server (prod) counts. Without one (dev, tests, a deploy that leaves MANAGEMENT_PORT
+    // out) Spring Boot still publishes local.management.port as an alias of the public port, so it is compared too
+    static RequestMatcher onManagementPort(Environment environment, String path) {
         return request -> {
             Integer port = environment.getProperty("local.management.port", Integer.class);
-            return port != null && port == request.getLocalPort() && path.equals(request.getRequestURI());
+            Integer publicPort = environment.getProperty("local.server.port", Integer.class);
+            return port != null && !port.equals(publicPort) && port == request.getLocalPort()
+                    && path.equals(request.getRequestURI());
         };
     }
 
