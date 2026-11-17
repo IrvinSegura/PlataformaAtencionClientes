@@ -1,8 +1,5 @@
 package com.irvinsegura.supportchat.shared.web;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import io.github.bucket4j.Bucket;
 import io.github.bucket4j.ConsumptionProbe;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -12,10 +9,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.server.PathContainer;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -29,36 +27,32 @@ import org.springframework.web.util.pattern.PathPatternParser;
  * Token-bucket rate limiting per client and rule. Registered right after the security filter chain, so the
  * authenticated operator is known and requests the chain already rejected cost nothing here.
  * <p>
- * Buckets live in memory, so with several instances each one enforces the limits on its own share of the traffic.
- * A shared store (Redis) is the next step once the platform runs more than a couple of instances.
+ * Buckets live in this instance's memory, or in Redis with {@code supportchat.rate-limit.store=redis} so that every
+ * instance shares them (see {@link RateLimitBuckets}). When Redis cannot be reached the request goes through: a
+ * short outage of the limiter must not take the whole API down with it.
  */
 public class RateLimitFilter extends OncePerRequestFilter {
 
     public static final String REMAINING_HEADER = "X-RateLimit-Remaining";
 
+    private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);
+
     private static final String WIDGET_PREFIX = "/api/v1/widget/";
 
-    // Bounds memory when many clients (or spoofed IPv6 addresses) show up; evicting an idle bucket loses nothing,
-    // because it would have refilled completely anyway
-    private static final long MAX_TRACKED_CLIENTS = 100_000;
-
     private final List<CompiledRule> rules;
-    private final Cache<String, Bucket> buckets;
+    private final RateLimitBuckets buckets;
     private final HandlerExceptionResolver exceptionResolver;
     private final Map<String, Counter> rejections;
+    private final Counter unavailable;
 
-    public RateLimitFilter(RateLimitProperties properties, HandlerExceptionResolver exceptionResolver,
-            MeterRegistry meterRegistry) {
+    RateLimitFilter(RateLimitProperties properties, RateLimitBuckets buckets,
+            HandlerExceptionResolver exceptionResolver, MeterRegistry meterRegistry) {
         this.rules = properties.rules().stream().map(CompiledRule::new).toList();
-        Duration longestPeriod = properties.rules().stream()
-                .map(RateLimitProperties.Rule::period)
-                .max(Comparator.naturalOrder())
-                .orElse(Duration.ofMinutes(1));
-        this.buckets = Caffeine.newBuilder()
-                .maximumSize(MAX_TRACKED_CLIENTS)
-                .expireAfterAccess(longestPeriod)
-                .build();
+        this.buckets = buckets;
         this.exceptionResolver = exceptionResolver;
+        this.unavailable = Counter.builder("supportchat.rate.limit.unavailable")
+                .description("Requests let through because the rate limit store could not be reached")
+                .register(meterRegistry);
         this.rejections = properties.rules().stream().collect(Collectors.toMap(RateLimitProperties.Rule::name,
                 rule -> Counter.builder("supportchat.rate.limit.rejections")
                         .description("Requests rejected with 429 by the rate limiter")
@@ -77,8 +71,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        Bucket bucket = buckets.get(rule.name() + "|" + clientKey(rule, request, path), key -> rule.newBucket());
-        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+        ConsumptionProbe probe;
+        try {
+            probe = buckets.bucket(rule.name() + "|" + clientKey(rule, request, path), rule.capacity(), rule.period())
+                    .tryConsumeAndReturnRemaining(1);
+        } catch (RuntimeException e) {
+            unavailable.increment();
+            log.warn("Rate limit store unavailable, letting the request through: {}", e.getMessage());
+            chain.doFilter(request, response);
+            return;
+        }
         if (probe.isConsumed()) {
             response.setHeader(REMAINING_HEADER, String.valueOf(probe.getRemainingTokens()));
             chain.doFilter(request, response);
@@ -136,14 +138,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         boolean matches(String method, PathContainer path) {
             return (methods.isEmpty() || methods.contains(method))
                     && paths.stream().anyMatch(pattern -> pattern.matches(path));
-        }
-
-        // Greedy refill adds tokens continuously instead of all at once, so a client cannot burst twice the
-        // capacity across a period boundary
-        Bucket newBucket() {
-            return Bucket.builder()
-                    .addLimit(limit -> limit.capacity(capacity).refillGreedy(capacity, period))
-                    .build();
         }
     }
 }
