@@ -1,4 +1,4 @@
-package com.irvinsegura.supportchat.identity.infrastructure.security;
+package com.irvinsegura.supportchat.identity.infrastructure.config;
 
 import com.irvinsegura.supportchat.identity.domain.model.LockoutPolicy;
 import org.springframework.context.annotation.Bean;

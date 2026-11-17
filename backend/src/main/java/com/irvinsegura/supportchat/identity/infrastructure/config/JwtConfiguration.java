@@ -1,4 +1,4 @@
-package com.irvinsegura.supportchat.identity.infrastructure.security;
+package com.irvinsegura.supportchat.identity.infrastructure.config;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
