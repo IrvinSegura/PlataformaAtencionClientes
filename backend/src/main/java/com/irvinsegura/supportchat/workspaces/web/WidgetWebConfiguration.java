@@ -1,7 +1,6 @@
 package com.irvinsegura.supportchat.workspaces.web;
 
-import com.irvinsegura.supportchat.shared.web.PanelCorsProperties;
-import com.irvinsegura.supportchat.shared.web.WidgetHeaders;
+import com.irvinsegura.supportchat.workspaces.WidgetHeaders;
 import com.irvinsegura.supportchat.workspaces.Workspaces;
 import java.time.Duration;
 import java.util.List;

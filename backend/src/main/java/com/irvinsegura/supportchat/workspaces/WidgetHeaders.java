@@ -1,7 +1,7 @@
-package com.irvinsegura.supportchat.shared.web;
+package com.irvinsegura.supportchat.workspaces;
 
 /**
- * Headers of the public widget API, shared by the module that serves it and the one that sets up its CORS rules.
+ * Headers of the public widget API: the conversations module reads them and this module allows them in its CORS rules.
  */
 public final class WidgetHeaders {
 

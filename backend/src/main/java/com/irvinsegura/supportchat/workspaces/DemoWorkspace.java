@@ -1,4 +1,4 @@
-package com.irvinsegura.supportchat.shared.demo;
+package com.irvinsegura.supportchat.workspaces;
 
 import java.util.UUID;
 import org.springframework.boot.context.properties.ConfigurationProperties;
