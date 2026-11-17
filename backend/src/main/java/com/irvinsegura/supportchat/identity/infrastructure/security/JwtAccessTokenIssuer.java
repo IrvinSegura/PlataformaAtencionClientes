@@ -2,6 +2,7 @@ package com.irvinsegura.supportchat.identity.infrastructure.security;
 
 import com.irvinsegura.supportchat.identity.OperatorClaims;
 import com.irvinsegura.supportchat.identity.domain.port.AccessTokenIssuer;
+import com.irvinsegura.supportchat.identity.infrastructure.config.IdentityProperties;
 import com.irvinsegura.supportchat.shared.domain.Ids;
 import com.irvinsegura.supportchat.workspaces.WorkspaceRole;
 import java.time.Clock;

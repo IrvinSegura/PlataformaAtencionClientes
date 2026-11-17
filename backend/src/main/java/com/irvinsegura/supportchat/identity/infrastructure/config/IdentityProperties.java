@@ -1,4 +1,4 @@
-package com.irvinsegura.supportchat.identity.infrastructure.security;
+package com.irvinsegura.supportchat.identity.infrastructure.config;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;

@@ -12,13 +12,27 @@ import org.springframework.validation.annotation.Validated;
 
 /**
  * Rules are checked in order and the first one matching a request applies, so specific rules go before broad ones.
+ *
+ * @param store    where the buckets live; memory unless set
+ * @param redisUrl with the Redis store, e.g. {@code redis://redis:6379}
  */
 @Validated
 @ConfigurationProperties("supportchat.rate-limit")
-public record RateLimitProperties(boolean enabled, List<@Valid Rule> rules) {
+public record RateLimitProperties(boolean enabled, Store store, String redisUrl, List<@Valid Rule> rules) {
 
     public RateLimitProperties {
+        store = store == null ? Store.MEMORY : store;
         rules = rules == null ? List.of() : List.copyOf(rules);
+        if (enabled && store == Store.REDIS && (redisUrl == null || redisUrl.isBlank())) {
+            throw new IllegalArgumentException("supportchat.rate-limit.redis-url is required with the redis store");
+        }
+    }
+
+    public enum Store {
+        // Each instance counts on its own: a client gets the limit once per instance
+        MEMORY,
+        // Shared by every instance
+        REDIS
     }
 
     /**
