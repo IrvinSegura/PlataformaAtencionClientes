@@ -1,0 +1,37 @@
+# The datasource and Flyway credentials come from TestcontainersConfiguration
+supportchat:
+  identity:
+    jwt:
+      generate-keys-if-missing: true
+    # The lowest cost the application accepts keeps tests fast; production uses 12
+    password-hash-strength: 10
+  # Tests call the jobs' services directly, and every test signs in from the same address
+  scheduling:
+    enabled: false
+  rate-limit:
+    enabled: false
+  # Tests run webhooks and Meta's APIs on local servers
+  knowledge:
+    web:
+      # Pages served on this machine can be imported
+      allow-private-network: true
+  actions:
+    allow-insecure-http: true
+    allow-private-network: true
+  # ... and mail on a local server without TLS
+  channels:
+    email:
+      tls: false
+      allow-private-network: true
+  secrets:
+    encryption-key: dGVzdC1vbmx5LXNlY3JldHMta2V5LTMyLWJ5dGVzISE=
+  # A paid plan that runs out after one answer, to see what happens past a limit
+  billing:
+    plans:
+      TINY:
+        name: Mínimo
+        monthly-price: 1
+        included:
+          ANSWERS: 1
+          ACTION_RUNS: 0
+          WHATSAPP_MESSAGES: 1
