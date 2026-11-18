@@ -1,0 +1,2 @@
+org.springframework.test.context.TestExecutionListener=\
+com.irvinsegura.supportchat.support.ResetTestClock
