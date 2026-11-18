@@ -22,3 +22,8 @@ dist/
 
 # Load test output
 loadtest/results/
+
+# End-to-end test output
+e2e/test-results/
+e2e/playwright-report/
+loadtest/production/secrets/

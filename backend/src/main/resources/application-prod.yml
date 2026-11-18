@@ -27,3 +27,7 @@ supportchat:
       allowed-origins: ${CORS_ALLOWED_ORIGINS}
   secrets:
     encryption-key: ${SECRETS_ENCRYPTION_KEY}
+  legal:
+    # The public privacy policy must say where people ask about their data: the API does not start without it
+    contact-email: ${LEGAL_CONTACT_EMAIL}
+    contact-required: true
