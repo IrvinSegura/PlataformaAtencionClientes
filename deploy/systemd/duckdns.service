@@ -1,0 +1,10 @@
+[Unit]
+Description=Support Chat: point the DuckDNS name at this VM
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+ExecStart=/opt/supportchat/scripts/duckdns.sh
