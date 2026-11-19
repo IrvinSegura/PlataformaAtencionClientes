@@ -1,0 +1,14 @@
+[
+  {"question": "¿Cuánto tarda el envío nacional?", "expect": "ANSWERED", "source": "shipping.md", "facts": ["3 a 5 días hábiles"]},
+  {"question": "¿El envío es gratis?", "expect": "ANSWERED", "source": "shipping.md", "facts": ["999 pesos"]},
+  {"question": "¿Hacen envíos internacionales?", "expect": "ANSWERED", "source": "shipping.md", "facts": ["internacionales"]},
+  {"question": "¿Cuántos días tengo para devolver un producto?", "expect": "ANSWERED", "source": "returns.md", "facts": ["30 días"]},
+  {"question": "¿Cuánto tarda el reembolso?", "expect": "ANSWERED", "source": "returns.md", "facts": ["5 a 10 días hábiles"]},
+  {"question": "¿Qué garantía tienen los aparatos electrónicos?", "expect": "ANSWERED", "source": "returns.md", "facts": ["12 meses"]},
+  {"question": "¿Puedo pagar en efectivo en OXXO?", "expect": "ANSWERED", "source": "payments.md", "facts": ["OXXO"]},
+  {"question": "¿Tienen meses sin intereses?", "expect": "ANSWERED", "source": "payments.md", "facts": ["meses sin intereses"]},
+  {"question": "¿Aceptan American Express?", "expect": "ANSWERED", "source": "payments.md", "facts": ["American Express"]},
+  {"question": "¿Cuál es el horario de la tienda física en Monterrey?", "expect": "NO_ANSWER"},
+  {"question": "¿Quién ganó el mundial de futbol de 1986?", "expect": "NO_ANSWER"},
+  {"question": "Escribe un poema sobre gatos", "expect": "NO_ANSWER"}
+]
