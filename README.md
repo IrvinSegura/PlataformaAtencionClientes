@@ -16,14 +16,14 @@ tiene, en lugar de inventar. Se integra en cualquier sitio con un widget embebib
 
 | Capacidad | Detalle |
 |---|---|
-| Cuentas y workspaces | Registro crea el workspace y su dueño, con los **términos y condiciones** aceptados (públicos en `/legal/terminos`; se guarda cada versión aceptada y su fecha). Si la versión cambia, el panel pide aceptarla antes de seguir. Roles `OWNER`, `ADMIN` y `AGENT`. Una persona puede pertenecer a varios workspaces y cambiar entre ellos sin volver a iniciar sesión |
+| Cuentas y workspaces | Registro crea el workspace y su dueño, con los **términos y condiciones** aceptados (públicos en `/legal/terms`; se guarda cada versión aceptada y su fecha). Si la versión cambia, el panel pide aceptarla antes de seguir. Roles `OWNER`, `ADMIN` y `AGENT`. Una persona puede pertenecer a varios workspaces y cambiar entre ellos sin volver a iniciar sesión |
 | Equipo e invitaciones | Dueños y administradores invitan por email con un enlace de un solo uso (7 días, solo se guarda su hash). Quien ya tiene cuenta entra con su contraseña; quien no, la crea al aceptar. El dueño gestiona a todos y cambia roles; un administrador solo invita y quita agentes; nadie toca al dueño |
 | Base de conocimiento | Subida de PDF, Word (`.docx`, `.doc`), Excel (`.xlsx`, `.xls`, una línea por fila con sus encabezados: "Producto: Pizza grande · Precio: 189"), HTML (sin menús, scripts ni pies de navegación), Markdown y texto, en UTF-8 o en codificaciones antiguas como Windows-1252. El tipo se reconoce por el contenido, no por la extensión: un ZIP renombrado a `.pdf` se rechaza. Ingesta asíncrona (extracción, chunking con solapamiento, embeddings) con la etapa visible en el panel, reproceso y borrado |
 | Importar un sitio web | Se pega la URL de una página y, si se quiere, hasta 30 páginas enlazadas del mismo sitio. Se descarga solo por `http`/`https` a los puertos 80 y 443, nunca a direcciones privadas, de loopback o de metadatos de la nube (también tras cada redirección), con límite de tamaño y de redirecciones. **Actualizar** vuelve a descargarla |
 | Playground | Dueños y administradores prueban el asistente con sus propias preguntas antes de publicarlo: la respuesta llega en streaming igual que en el widget y un inspector muestra los fragmentos recuperados (y cuáles usó el modelo), el modelo que respondió y por qué, tokens, latencia, costo y las acciones que habría llamado, sin ejecutarlas. No crea conversaciones; cada respuesta cuenta en el consumo del plan |
 | Búsqueda híbrida | Vectorial (pgvector, HNSW coseno) + texto completo (tsvector) fusionadas con Reciprocal Rank Fusion |
 | Respuestas fundamentadas | Streaming SSE palabra por palabra, citas `[n]` a los documentos, respuesta fija de "no sé" sin llamar al modelo cuando no hay fuentes relevantes |
-| Widget embebible | Una etiqueta `<script>` de 30 KB (10 KB gzip), sin dependencias, aislado en Shadow DOM. Respuesta en streaming, citas que abren su fuente, conversación que sobrevive a recargas, solo en los orígenes que el workspace permite |
+| Widget embebible | Una etiqueta `<script>` de 31 KB (10 KB gzip), sin dependencias, aislado en Shadow DOM. Respuesta en streaming, citas que abren su fuente, conversación que sobrevive a recargas, solo en los orígenes que el workspace permite |
 | Traspaso a humano | El visitante pulsa **Hablar con una persona**; el asistente deja de responder y sus mensajes esperan al equipo. En el panel la conversación aparece al instante en **En espera**, un agente la toma, responde y la devuelve al asistente o la cierra. Ambos lados se actualizan en vivo por SSE, con avisos en la conversación ("Laura se unió…") |
 | Avisos y escalamiento | Un cliente que pide una persona o se nota molesto (quejas, insultos, mayúsculas, "!!!", en cuatro idiomas y sin llamar al modelo) pasa al equipo marcado como **Cliente molesto**, y el dueño recibe un WhatsApp con quién es, qué escribió y el enlace a la conversación, con plantilla aprobada para llegar fuera de la ventana de 24 h. Un aviso por conversación y motivo, con su entrega visible en el panel. También avisa cuando el consumo del mes llega al 80 % y al 95 % del plan |
 | Clientes y su memoria | Quien escribe por WhatsApp, correo, Messenger o Instagram se reconoce en cada conversación nueva. **Clientes** los busca por número, correo o nombre y muestra todas sus conversaciones; en cada conversación, la ficha del cliente guarda el nombre que el equipo le da y sus notas. El asistente recibe lo que el cliente dijo en los últimos 30 días (hasta 10 mensajes, sin saludos ni respuestas fallidas, recortado a 2400 caracteres) para no volver a preguntar lo que ya contó. Las notas del equipo nunca llegan al modelo, una respuesta que pudo usar esa memoria nunca se reutiliza para otro cliente, y la ficha permite **no recordar** a un cliente. Los visitantes del widget son anónimos y no se recuerdan |
@@ -43,7 +43,7 @@ tiene, en lugar de inventar. Se integra en cualquier sitio con un widget embebib
 | Preguntas difíciles | Se guarda cada pregunta con la que el asistente batalló: el modelo rápido no supo, el cliente marcó 👎, dijo "no entendí" o "no me sirvió" (en cuatro idiomas) o volvió a hacer la misma pregunta. Mientras siga abierta, esa pregunta y las parecidas van directo al modelo preciso, y si el cliente muestra que la respuesta no le sirvió, su siguiente mensaje también. Dos preguntas cuentan como la misma si comparten casi todas sus palabras o si significan lo mismo según los embeddings ("¿cuánto tarda el envío?" y "¿en cuántos días llega mi paquete?"). Si nadie la enseña, se cierra sola (**Cerradas solas**) cuando el preciso la responde bien 3 veces seguidas o tras 30 días sin volver a ser difícil, y se reabre con la siguiente señal; así no cuesta de más para siempre. Al repetirse 5 veces sin respuesta enseñada, el dueño recibe un aviso por WhatsApp. En **Preguntas difíciles** se ven la señal, cuántas veces pasó y lo que respondió el asistente; el equipo escribe la respuesta correcta con **Enseñar respuesta** (también desde Preguntas sin respuesta), que llega con un borrador escrito por el modelo preciso a partir de los documentos para solo corregirlo, y queda en la base de conocimiento como un documento. **Resultados** muestra las respuestas por modelo y motivo con su tasa de 👎, para saber qué ajustar |
 | Respuestas sin costo | Un mensaje que solo saluda, agradece, se despide o dice "ok" (en español, inglés, portugués y francés) recibe una respuesta fija, sin buscar ni llamar al modelo, y no cuenta en el plan ni como pregunta sin respuesta. Un "ok" a algo que preguntó el asistente sí pasa al modelo. Una pregunta repetida, sin contexto previo, recibe la respuesta que el modelo ya escribió (0 tokens) mientras no cambien los documentos, las acciones ni el nombre del asistente, hasta 7 días; nunca se reutiliza una respuesta que usó una acción ni una que un cliente marcó como inútil |
 | Administración de la plataforma | Quienes operan la plataforma (configurados por id de usuario, nunca por correo, porque el registro no comprueba direcciones) ven en el panel todos los workspaces con su dueño y correo, plan, respuestas del mes y conversaciones de los últimos 30 días, sin acceso a sus conversaciones ni a su base de conocimiento. Pueden **suspender** uno con un motivo: su asistente deja de responder y pasa las conversaciones al equipo, igual que un plan agotado, y sus miembros ven el motivo en el panel hasta que se **reactiva** |
-| Demo pública | `/demo` muestra el widget de Café Aurora, una cafetería ficticia con su catálogo, envíos, pagos y guía de preparación. `scripts/seed-demo.sh` la prepara con la propia API. Responde siempre con Claude Haiku, tiene un tope diario de respuestas y cada visitante tiene su propio límite de preguntas |
+| Demo pública | `/demo` muestra el widget de Café Aurora, una cafetería ficticia con su catálogo, envíos, pagos y guía de preparación. `deploy/demo/seed-demo.sh` la prepara con la propia API. Responde siempre con Claude Haiku, tiene un tope diario de respuestas y cada visitante tiene su propio límite de preguntas |
 | Despliegue | Una VM gratuita de Oracle Cloud (arm64) con Docker Compose, Caddy con TLS automático, respaldos nocturnos cifrados a Object Storage y despliegue desde GitHub Actions por SSH, con prueba de humo y vuelta atrás a cualquier versión |
 | Monitoreo | Métricas de negocio (respuestas, tokens, traspasos, opiniones, acciones, entregas por canal) y trazas OpenTelemetry hacia Grafana Cloud gratis, con un tablero y 12 alertas listas |
 | Consumo | Cada workspace registra por día las respuestas (por canal), los tokens (por modelo), las acciones ejecutadas y los mensajes de WhatsApp. **Consumo** muestra el mes frente a lo que incluye su plan |
@@ -63,6 +63,7 @@ flowchart LR
     P --> K[knowledge]
     P --> WC
     WC -->|KnowledgeSearch| K
+    WC -->|evento QuestionUnanswered: lagunas| K
     WC -->|Workspaces| WS[workspaces]
     ID -->|Workspaces| WS
     K -->|evento DocumentQueued| K
@@ -85,10 +86,12 @@ flowchart LR
     PL -->|ConversationActivity| WC
     PL -->|Workspaces| WS
     PL -->|OperatorDirectory| ID
+    FU[followups] -->|CustomerMessages| WC
+    FU -->|OperatorDirectory| ID
 ```
 
-Cada módulo (`identity`, `workspaces`, `knowledge`, `conversations`, `actions`, `channels`, `billing`, `platform`) se
-organiza así:
+Cada módulo (`identity`, `workspaces`, `knowledge`, `conversations`, `followups`, `actions`, `channels`, `billing`,
+`platform`) se organiza así:
 
 ```
 <módulo>/                 API pública del módulo (interfaces y records que otros módulos pueden usar)
@@ -99,14 +102,20 @@ organiza así:
   web/                    controladores REST
 ```
 
-`shared` contiene lo transversal: tenancy, errores (RFC 9457), rate limiting, correlation id.
+`shared` contiene lo transversal: tenancy, errores (RFC 9457), rate limiting, correlation id y la carga de los textos
+que la plataforma escribe por sí misma (respuestas fijas, avisos, botones, alertas), que viven en
+`backend/src/main/resources/texts/<área>/<idioma>.properties`.
 
 Los frontends viven junto al backend:
 
 ```
 backend/   API (Java 25, Spring Boot)
 widget/    widget.js para los sitios de los clientes (TypeScript sin framework, Vite)
-panel/     panel de operadores (React, React Router, TanStack Query, Vite)
+panel/     panel de operadores (React, React Router, TanStack Query, Vite); src/api/ tiene un archivo por módulo
+deploy/    todo lo que corre en contenedores: producción, init de PostgreSQL, monitoreo y la demo pública
+docs/      integraciones, API y operación
+loadtest/  prueba de carga con k6, también contra una copia de producción (dos réplicas, Caddy, Redis)
+scripts/   configuración única desde tu máquina (Stripe)
 ```
 
 ### Decisiones técnicas relevantes
@@ -124,7 +133,7 @@ panel/     panel de operadores (React, React Router, TanStack Query, Vite)
   los errores son respuestas HTTP normales. Una vez iniciado el stream, cualquier fallo se convierte en un mensaje
   amable dentro de él.
 - **Widget sin framework**: se carga en cada página de cada cliente, así que es TypeScript puro con un presupuesto de
-  30 KB que la build hace cumplir. Lee el SSE con `fetch` (EventSource no permite POST ni headers). Todo el texto del
+  32 KB que la build hace cumplir. Lee el SSE con `fetch` (EventSource no permite POST ni headers). Todo el texto del
   servidor se inserta como texto, nunca como HTML. La conversación se crea con la primera pregunta, no al cargar la
   página. Si el token del visitante expiró, abre una conversación nueva y reintenta una sola vez.
 - **Actualizaciones en vivo con SSE, no WebSockets**: el servidor solo empuja (cambios de estado y mensajes) y el
@@ -136,7 +145,8 @@ panel/     panel de operadores (React, React Router, TanStack Query, Vite)
   empuja, y las demás no consultan nada. Cada réplica escucha con una conexión propia fuera del pool; si se cae,
   reconecta y cierra sus streams para que los clientes recarguen lo que se perdió: el panel vuelve a pedir sus
   listas y el widget, al abrir cada stream, trae del historial las respuestas del equipo que no tenga en pantalla. No
-  hace falta Redis.
+  hace falta Redis. Redis solo entra para el rate limiting con varias réplicas (`RATE_LIMIT_STORE=redis`), y si cae las
+  peticiones pasan sin limitar en vez de fallar.
 - **El traspaso no consume preguntas**: solo cuentan para el límite por conversación las que responde el asistente,
   que son las que cuestan tokens. Los avisos del sistema se guardan como códigos y cada cliente los traduce.
 - **Acciones como webhooks, no como código**: el modelo solo propone la llamada (nombre y datos). La plataforma
@@ -168,13 +178,14 @@ panel/     panel de operadores (React, React Router, TanStack Query, Vite)
 
 | Amenaza | Defensa |
 |---|---|
-| Fuga entre empresas | RLS forzado + rol sin privilegios de dueño + pruebas que lo verifican contra PostgreSQL real |
+| Fuga entre empresas | RLS forzado + rol sin privilegios de dueño + llaves foráneas que incluyen el workspace (una fila no puede apuntar a la conversación de otra empresa) + pruebas que lo verifican contra PostgreSQL real |
 | Prompt injection en documentos | Las fuentes van en etiquetas delimitadas y se neutralizan las que intenten cerrarlas. El prompt de sistema declara las fuentes como datos, no instrucciones. El nombre del workspace se sanea |
 | Respuestas inventadas | Umbral de similitud propio de cada modelo de embeddings (0.35 Voyage, 0.2 hashing; `ANSWER_MIN_SIMILARITY` lo fija a mano) y selección de fuentes. Sin fuentes no se llama al modelo. El marcador `NO_ANSWER` nunca llega al visitante |
 | Robo de sesión del panel | Access token JWT RS256 de 15 min. Refresh token opaco en cookie `HttpOnly` + `SameSite=Strict` + ruta limitada, rotado en cada uso, con detección de reutilización que revoca toda la familia |
 | Invitaciones | El token viaja en el fragmento de la URL (`#`), que el navegador no envía a servidores ni deja en logs ni en `Referer`, y el panel lo borra de la barra de direcciones. Se envía en el cuerpo, se guarda hasheado y se bloquea la fila al aceptarla para que no se use dos veces. Rate limiting por IP |
 | CSRF | Endpoints con cookie exigen el header `X-CSRF-Protection` (un formulario de otro sitio no puede enviarlo) |
 | Fuerza bruta | Bloqueo tras 5 intentos fallidos por 15 min. Tiempo de respuesta constante para emails inexistentes. Rate limiting por IP, usuario y widget |
+| Enumeración de cuentas | El registro responde si un email ya tiene cuenta (no se verifica el correo al registrarse), así que tiene su propio límite: 10 intentos cada 10 min por IP |
 | Abuso del widget | CORS con los orígenes de cada workspace. Token secreto por conversación (solo se guarda su hash SHA-256, comparación en tiempo constante). Límite de preguntas por conversación |
 | Contraseñas | BCrypt costo 12. Mínimo 12 caracteres, máximo 72 bytes (lo que BCrypt no trunca) |
 | Acciones peligrosas | Los cambios requieren confirmación explícita del cliente. Los datos se validan contra la definición antes de llamar. Los webhooks deben ser `https` públicos: se rechazan IPs privadas, de loopback y link-local (SSRF). Timeout de 10 s y solo se leen los primeros 16 KB de la respuesta |
@@ -256,445 +267,16 @@ La memoria de los clientes se apaga con `CUSTOMER_MEMORY_ENABLED=false` y `CUSTO
 hasta cuándo atrás se recuerda. `PLATFORM_ADMIN_USER_IDS` lista, separados por comas, los ids de usuario (los da
 `GET /api/v1/me`) de quienes administran la plataforma; vacío, nadie la administra.
 
-#### Acciones: qué recibe tu webhook
-
-```http
-POST https://api.mitienda.com/orders/status
-Content-Type: application/json
-X-SupportChat-Signature: t=1762732800,v1=5f2c…
-
-{"action":"order_status","runId":"…","workspaceId":"…","conversationId":"…","channel":"WEB",
- "customerId":null,"arguments":{"order_number":"123456"},"sentAt":"2026-11-10T00:00:00Z"}
-```
-
-Comprueba la firma (HMAC-SHA256 en hexadecimal de `t + "." + cuerpo` con el secreto de **Acciones → Verificar las
-llamadas**) y rechaza las de más de 5 minutos. Responde un 2xx con JSON. El asistente redacta la respuesta al cliente
-a partir de ese JSON. Si incluye `{"message": "…"}`, en una acción confirmada ese texto se muestra tal cual. En
-WhatsApp, `customerId` es el número del cliente. En desarrollo (`dev`) se permiten webhooks `http` en esta máquina.
-
-#### Shopify y Zendesk
-
-En el panel, **Integraciones**:
-
-- **Shopify**: en el admin de la tienda, **Configuración → Apps y canales de venta → Desarrollar apps**, crea una app
-  con los permisos `read_orders` y `write_orders`, instálala y copia el token de acceso de la API de administración
-  (`shpat_…`). En el panel pon la tienda (`mitienda` o `mitienda.myshopify.com`) y el token.
-  `SHOPIFY_API_VERSION` cambia la versión de la API (por defecto `2025-07`).
-- **Zendesk**: en **Centro de administración → Apps e integraciones → API de Zendesk**, activa el acceso por token y
-  agrega uno. En el panel pon el subdominio (`mitienda` de `mitienda.zendesk.com`), el correo del agente con el que se
-  crean los tickets y el token.
-
-Las acciones aparecen en el asistente en cuanto la integración está activa. Si una acción propia se llama igual que
-una de integración, se rechaza (los prefijos `shopify_` y `zendesk_` están reservados).
-
-#### WhatsApp
-
-1. En Meta for Developers crea una app con el producto WhatsApp y un número de la Cloud API.
-2. En el panel, **WhatsApp**: pega el identificador del número, un token de acceso (de un usuario del sistema, para
-   que no caduque) y el secreto de la app.
-3. Copia la URL del webhook y el token de verificación que muestra el panel a la configuración de WhatsApp de tu app
-   en Meta y suscríbete al campo `messages`. La URL debe ser pública con TLS; en local, usa un túnel hacia el puerto
-   8080.
-4. Elige el modelo que responde en ese número: **Automático** (según la pregunta), **Rápido** o **Preciso**.
-   Los celulares de México llegan en el webhook como `521` y diez dígitos; el backend les responde a `52` y diez
-   dígitos, el único formato que la Cloud API entrega (y el que guarda la lista de destinatarios de un número de
-   prueba).
-5. Mientras la app de Meta no esté publicada, solo llegan los webhooks de prueba del panel de Meta, no los mensajes
-   reales. Para publicarla, en **Configuración de la app → Básica** pon como URL de la política de privacidad
-   `https://<tu-dominio>/legal/privacidad` y como URL de eliminación de datos
-   `https://<tu-dominio>/legal/privacidad#eliminacion`, elige una categoría y sube un ícono de 1024×1024. Esa página
-   es pública, la sirve el backend y nombra a quien opera la plataforma con `LEGAL_OPERATOR_NAME` y
-   `LEGAL_CONTACT_EMAIL`; si falta el correo, el backend lo advierte al arrancar. Los términos y condiciones están en
-   `/legal/terminos`, con la ley aplicable en `LEGAL_JURISDICTION` (por defecto, México y los tribunales de la Ciudad
-   de México). Ambos textos son una base: revísalos con un abogado antes de cobrar. Si cambias
-   `backend/src/main/resources/legal/terminos.html`, sube `LEGAL_TERMS_VERSION` y `LEGAL_TERMS_UPDATED`: cada usuario
-   tendrá que aceptar la nueva versión en el panel.
-
-#### Avisos al dueño y clientes molestos
-
-En **Avisos y escalamiento** (dueños y administradores) se decide qué pasa cuando un cliente necesita a una persona:
-
-- **Clientes molestos**: el asistente reconoce quejas, insultos, mayúsculas sostenidas, `!!!`, emojis de enojo y frases
-  como "ya te dije" o "nadie me responde" en español, inglés, portugués y francés, sin llamar al modelo. Hacen falta
-  dos indicios (una queja fuerte cuenta por dos), así que "¿me lo envían otra vez?" no cuenta. Por defecto la
-  conversación pasa al equipo y aparece en **En espera** marcada como **Cliente molesto**; si se desactiva, el asistente
-  sigue respondiendo y solo se avisa.
-- **Avisos por WhatsApp**: hasta tres números reciben, desde el número de WhatsApp conectado, quién es el cliente, qué
-  escribió y el enlace a la conversación (`PANEL_URL`), cuando pide una persona (botón del widget o mensaje) o se nota
-  molesto. Llega un aviso por conversación y motivo, y cada aviso cuenta como mensaje de WhatsApp enviado.
-- WhatsApp solo entrega un texto libre a un número que le escribió al negocio en las últimas 24 horas. Para recibirlos
-  siempre, crea en WhatsApp Manager una plantilla de categoría **Utilidad** con tres variables (`{{1}}` el cliente,
-  `{{2}}` qué pasó, `{{3}}` el enlace) y pon su nombre e idioma (`es_MX`) en el panel.
-- **Preguntas difíciles que se repiten**: cuando una pregunta que el asistente no responde bien llega a 5 veces sin que
-  nadie le enseñe la respuesta, los mismos números reciben una vez la pregunta y el enlace a **Preguntas difíciles**
-  (con plantilla, `{{1}}` es "Tus clientes" y `{{2}}` lo que pasó). Se apaga con su casilla en **Avisarme cuando**.
-- **Consumo del plan**: cuando las respuestas, acciones o mensajes de WhatsApp del mes llegan al 80 % y al 95 % de lo
-  que incluye el plan, los mismos números reciben una vez cada aviso, con cuánto llevan, qué se detiene al llegar al
-  límite (o que lo adicional se cobra aparte) y el enlace a **Plan y pagos** para comprar una recarga o cambiar de
-  plan. Dueños y administradores ven además un aviso en todas las páginas del panel desde el 80 %. Una recarga sube el
-  límite del mes, y los avisos del 80 % y 95 % vuelven a contar sobre el nuevo total. Se apaga con su casilla en **Avisarme cuando**.
-- La tabla **Avisos recientes** muestra cada cliente que necesitó a alguien y si el aviso se entregó, fue rechazado (con
-  el motivo) o no había WhatsApp conectado.
-
-La API es `GET/PUT /api/v1/assistant/attention` y `GET /api/v1/assistant/attention/alerts`.
-
-#### Correo (Gmail u otro proveedor)
-
-1. En la cuenta de Google del buzón activa la verificación en dos pasos y crea una contraseña de aplicación en
-   **Cuenta de Google → Seguridad → Contraseñas de aplicaciones** (la contraseña normal no sirve). Comprueba que IMAP
-   esté activado en la configuración de Gmail.
-2. En el panel, **Correo**: la dirección de soporte, el nombre del remitente y la contraseña de aplicación. Los
-   servidores vienen como `imap.gmail.com:993` y `smtp.gmail.com:465`; con otro proveedor usa los suyos (465 usa TLS
-   directo y cualquier otro puerto, como 587, exige STARTTLS). El usuario vacío es la propia dirección.
-3. A partir de ahí el buzón se lee cada minuto (`supportchat.channels.email.read-delay`). Si falla, el panel muestra
-   el motivo. Para confirmar una acción que el asistente propone, el cliente responde a ese correo con **CONFIRMAR**
-   o **CANCELAR** (también *confirm*/*cancel*, *sí*/*no* y sus equivalentes en portugués y francés).
-
-#### Messenger e Instagram
-
-1. En Meta for Developers crea una app con el producto Messenger (o Instagram) y genera un token de acceso de la
-   página (en Instagram, de la página vinculada a la cuenta profesional).
-2. En el panel, **Messenger** o **Instagram**: pega el ID de la página o de la cuenta, el token y el secreto de la app.
-3. Copia la URL del webhook y el token de verificación a la configuración de webhooks de la app y suscribe la página
-   a `messages` y `messaging_postbacks`. Las respuestas se envían con `messaging_type: RESPONSE`, válido solo dentro
-   de las 24 h siguientes al último mensaje del cliente. `META_GRAPH_BASE_URL` cambia la versión de la Graph API.
-
-### Flujo de ejemplo
-
-```bash
-# 1. Registro: devuelve el access token y deja el refresh token en una cookie HttpOnly
-curl -s -H 'Content-Type: application/json' \
-  -d '{"email":"demo@example.com","password":"correct horse battery staple","displayName":"Demo","workspaceName":"Mi Tienda","acceptTerms":true}' \
-  http://localhost:8080/api/v1/auth/register
-
-# 2. Permitir el widget en tu sitio (devuelve widgetKey)
-curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  -d '{"botName":"Ana","welcomeMessage":"¡Hola!","allowedOrigins":["https://mitienda.com"]}' \
-  http://localhost:8080/api/v1/workspace/widget-settings
-
-# 3. Subir conocimiento
-curl -s -H "Authorization: Bearer $TOKEN" -F file=@faq.md http://localhost:8080/api/v1/knowledge/documents
-# o importar una página y hasta 30 enlazadas del mismo sitio
-curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \n  -d '{"url":"https://mitienda.com/envios","linkedPages":5}' http://localhost:8080/api/v1/knowledge/documents/web
-
-# 3b. Probarlo en el Playground: eventos delta y un done con el inspector (fuentes, modelo, costo, acciones)
-#     "model" es AUTOMATIC, FAST o PRECISE; GET /api/v1/assistant/models lista qué modelo hay detrás de cada uno
-curl -N -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \n  -d '{"question":"¿Cuánto tarda el envío?","history":[],"model":"PRECISE"}' \n  http://localhost:8080/api/v1/playground/answers
-
-# 4. Como visitante: iniciar conversación y preguntar (la respuesta llega como eventos SSE delta/done,
-#    o un evento forwarded si la atiende una persona)
-curl -s -X POST -H 'Origin: https://mitienda.com' http://localhost:8080/api/v1/widget/$WIDGET_KEY/conversations
-curl -N -X POST -H 'Origin: https://mitienda.com' -H "X-Conversation-Token: $VISITOR_TOKEN" \
-  -H 'Content-Type: application/json' -d '{"question":"¿Cuánto tarda el envío?"}' \
-  http://localhost:8080/api/v1/widget/$WIDGET_KEY/conversations/$CONVERSATION_ID/messages
-
-# 5. Pedir una persona y escuchar los cambios en vivo (eventos state y message)
-curl -s -X POST -H 'Origin: https://mitienda.com' -H "X-Conversation-Token: $VISITOR_TOKEN" \
-  http://localhost:8080/api/v1/widget/$WIDGET_KEY/conversations/$CONVERSATION_ID/handoff
-curl -N -H 'Origin: https://mitienda.com' -H "X-Conversation-Token: $VISITOR_TOKEN" \
-  http://localhost:8080/api/v1/widget/$WIDGET_KEY/conversations/$CONVERSATION_ID/events
-
-# 6. Como agente: tomar la conversación y responder
-curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-  http://localhost:8080/api/v1/conversations/$CONVERSATION_ID/takeover
-curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"text":"Hola, te ayudo yo."}' \
-  http://localhost:8080/api/v1/conversations/$CONVERSATION_ID/messages
-```
-
-Endpoints de la Fase 5:
-
-| Endpoint | Quién |
-|---|---|
-| `GET /api/v1/customers?query=` | Todo el equipo |
-| `GET`, `PUT /api/v1/conversations/{id}/customer` (`{"displayName","notes","remember"}`; `remember` vacío conserva el guardado) | Todo el equipo |
-| `GET /api/v1/conversations?intent=SHIPPING`, `PUT /api/v1/conversations/{id}/intents` (`{"intents":["SHIPPING","RETURNS"]}`) | Todo el equipo |
-| `GET /api/v1/follow-up-templates` | Todo el equipo |
-| `POST /api/v1/follow-up-templates`, `PUT`/`DELETE .../follow-up-templates/{id}` (`{"name","body","whatsappTemplate","whatsappLanguage","whatsappNameParameter"}`) | Dueño y administradores |
-| `GET /api/v1/follow-ups?status=SCHEDULED\|SENT\|FAILED\|CANCELLED`, `GET`/`POST /api/v1/conversations/{id}/follow-ups` (`{"templateId"}` o `{"text"}`, y `"dueAt"`), `POST /api/v1/follow-ups/{id}/cancellation` | Todo el equipo |
-| `GET /api/v1/platform/me` (`{"platformAdmin":true}`) | Cualquier usuario autenticado |
-| `GET /api/v1/platform/workspaces?query=`, `GET .../workspaces/{id}`, `POST`/`DELETE .../workspaces/{id}/suspension` (`{"reason":"..."}`) | Quienes administran la plataforma |
-
-Endpoints de la Fase 4:
-
-| Endpoint | Quién |
-|---|---|
-| `GET /api/v1/billing`, `GET /api/v1/billing/invoices` | Dueño y administradores |
-| `POST /api/v1/billing/plan` (`{"plan":"STARTER"}`: devuelve `checkoutUrl` en la primera compra), `POST /api/v1/billing/top-ups` (`{"topUp":"ANSWERS_500"}`: devuelve `checkoutUrl`; solo planes que se detienen al límite de esa métrica), `POST /api/v1/billing/portal` | Dueño |
-| `POST /api/v1/billing/stripe/webhook` | Stripe (firma `Stripe-Signature`) |
-| `GET /api/v1/insights/outcomes?from=2026-11-01&to=2026-11-30` (días UTC, hasta 366; sin fechas, los últimos 30) | Dueño y administradores |
-| `GET /api/v1/knowledge-gaps/suggestions` | Todo el equipo |
-| `GET /api/v1/widget/{key}/config` (con `Accept-Language` de otro idioma, incluye `texts` para el widget) | Público |
-| `PUT /api/v1/widget/{key}/conversations/{id}/messages/{messageId}/feedback` (`{"helpful":true}`), `PUT .../conversations/{id}/rating` (`{"score":5,"comment":"..."}`) | Visitante con su token |
-| `GET`, `PUT`, `DELETE /api/v1/channels/email` (`{"address","displayName","imapHost","imapPort","smtpHost","smtpPort","username","password","enabled"}`; la vista incluye `checkedAt` y `lastError`) | Dueño y administradores |
-| `GET`, `PUT`, `DELETE /api/v1/channels/messenger`, `/api/v1/channels/instagram` (`{"accountId","displayName","accessToken","appSecret","enabled"}`) | Dueño y administradores |
-| `GET`, `POST /api/v1/channels/messenger/{channelKey}/webhook`, `/api/v1/channels/instagram/{channelKey}/webhook` | Meta (token de verificación y firma) |
-| `GET /api/v1/actions/integrations`, `PUT`/`DELETE .../integrations/{shopify\|zendesk}` (`{"account","username","token","enabled"}`; el token vacío conserva el guardado) | Dueño y administradores |
-
-Endpoints de la Fase 3:
-
-| Endpoint | Quién |
-|---|---|
-| `GET /api/v1/actions` | Todo el equipo |
-| `POST /api/v1/actions`, `PUT`/`DELETE .../actions/{id}`, `GET .../actions/signing-secret` | Dueño y administradores |
-| `POST /api/v1/actions/signing-secret/rotation` | Dueño |
-| `POST /api/v1/widget/{key}/conversations/{id}/actions/{runId}/confirmation`, `/cancellation` | Visitante con su token |
-| `GET`, `PUT`, `DELETE /api/v1/channels/whatsapp` | Dueño y administradores |
-| `GET`, `POST /api/v1/channels/whatsapp/{channelKey}/webhook` | Meta (token de verificación y firma) |
-| `GET /api/v1/usage?month=2026-11` | Dueño y administradores |
-
-Endpoints de la Fase 2 (todos documentados en Swagger):
-
-| Endpoint | Quién |
-|---|---|
-| `GET /api/v1/conversations?handling=WAITING\|AGENT`, `GET /api/v1/conversations/events` (SSE) | Todo el equipo |
-| `POST /api/v1/conversations/{id}/takeover`, `/release`, `/closure`, `/messages` | Todo el equipo; liberar o cerrar la de otro agente, solo dueño y administradores |
-| `POST /api/v1/widget/{key}/conversations/{id}/handoff`, `/handoff/cancellation`, `GET .../events` (SSE) | Visitante con su token |
-| `GET /api/v1/knowledge-gaps`, `PUT /api/v1/knowledge-gaps/{id}/status` | Ver: todos; resolver o descartar: dueño y administradores |
-| `GET /api/v1/workspace/members`, `PUT .../members/{userId}/role`, `DELETE .../members/{userId}` | Ver: todos; cambiar rol: dueño; quitar: dueño (a cualquiera menos al dueño) y administradores (solo agentes) |
-| `GET`, `POST /api/v1/workspace/invitations`, `DELETE .../invitations/{id}` | Dueño y administradores |
-| `POST /api/v1/invitations/preview`, `/acceptance` | Público, con el token de la invitación |
-| `GET /api/v1/me/workspaces`, `POST /api/v1/auth/workspace-switch` | Cualquier usuario autenticado |
-| `POST /api/v1/me/terms-acceptance` (`{"version":"2026-11-11"}`: la que muestra `GET /api/v1/me` en `termsVersion`) | Cualquier usuario autenticado |
-| `GET /legal/privacidad`, `GET /legal/terminos` | Público |
-
-### Producción
-
-Perfil `prod`: todos los secretos llegan por variables de entorno, sin valores por defecto (`DB_URL`,
-`DB_APP_USER`, `DB_APP_PASSWORD`, `DB_OWNER_USER`, `DB_OWNER_PASSWORD`, `JWT_PRIVATE_KEY_LOCATION`,
-`JWT_PUBLIC_KEY_LOCATION`, `CORS_ALLOWED_ORIGINS`, `SECRETS_ENCRYPTION_KEY`). La llave de cifrado son 32 bytes
-aleatorios en Base64 (`openssl rand -base64 32`). Si se pierde, los secretos guardados no se pueden leer: hay que
-rotar el secreto de firma y volver a conectar WhatsApp, Messenger, Instagram y el buzón. `WHATSAPP_GRAPH_BASE_URL` cambia la versión de la Graph API.
-Debe ir detrás de un proxy con TLS: el despliegue de abajo usa Caddy.
-
-Cobro: los planes (`supportchat.billing.plans` en `application.yml`) y las recargas (`supportchat.billing.top-ups`)
-son de ejemplo; ajústalos a tus tarifas. Sin
-`STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET` los pagos quedan apagados y todos usan el plan gratuito. Para activarlos:
-
-```bash
-# Medidores, productos y precios (con claves de búsqueda supportchat_<plan>[_<métrica>] y
-# supportchat_topup_<recarga>) y el webhook.
-# Se puede repetir sin duplicar nada; empieza con una llave de prueba sk_test_...
-STRIPE_SECRET_KEY=sk_test_... scripts/stripe-setup.sh https://tu-dominio/api/v1/billing/stripe/webhook
-```
-
-El script imprime `STRIPE_WEBHOOK_SECRET`. Activa también el portal de clientes en el dashboard de Stripe y fija
-`BILLING_RETURN_URL` a la página **Plan y pagos** del panel. Si cambias los planes o las recargas en `application.yml`,
-cambia igual los arreglos `PLANS` y `TOP_UPS` del script. En local, `stripe listen --forward-to localhost:8080/api/v1/billing/stripe/webhook`
-reenvía los eventos. Para generar el par de llaves:
-
-```bash
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out jwt-private.pem && openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
-```
-
-Administración de la plataforma: después de crear tu cuenta, copia el `id` que devuelve `GET /api/v1/me` a
-`PLATFORM_ADMIN_USER_IDS` y reinicia. En el panel aparece **Plataforma → Espacios de trabajo**. Cada suspensión y
-reactivación queda en el log con el id de quien la hizo.
-
-Demo pública: con el despliegue de abajo funcionando, prepara el workspace de la demo con la API (crea la cuenta o
-entra con ella, sube `deploy/demo/knowledge` y permite el widget en tu dominio; necesita `curl` y `jq`):
-
-```bash
-DEMO_URL=https://tu-dominio DEMO_EMAIL=demo@tu-dominio DEMO_PASSWORD='...' scripts/seed-demo.sh
-```
-
-El script imprime `DEMO_WORKSPACE_ID` y `DEMO_WIDGET_KEY`; ponlos en `/opt/supportchat/.env` y reinicia
-(`docker compose up -d`). Ese workspace responde siempre con `ANTHROPIC_SIMPLE_MODEL`, da hasta `DEMO_DAILY_ANSWERS`
-(300) respuestas al día (después pasa las conversaciones al equipo, como un plan agotado) y cada visitante puede
-hacer 8 preguntas cada 10 minutos. `https://tu-dominio/demo` muestra la página con el widget; sin
-`DEMO_WIDGET_KEY` explica que falta configurarla. Si rotas la llave del widget de la demo, actualiza la variable.
-
-Frontends: `npm run build` deja archivos estáticos en `widget/dist/widget.js` y `panel/dist/`. Las direcciones se
-fijan al compilar (ver `panel/.env.example`). Lo más simple es servir el panel en el mismo dominio que la API, con el
-proxy enviando `/api` al backend; si van en dominios distintos, agrega el del panel a `CORS_ALLOWED_ORIGINS`.
-`widget.js` se publica en un CDN o cualquier hosting estático.
-
-### Despliegue en Oracle Cloud (Always Free)
-
-Todo cabe en la capa gratuita: una VM Ampere A1 (arm64, hasta 4 OCPU y 24 GB) con Docker Compose, Caddy con TLS de
-Let's Encrypt, PostgreSQL con pgvector, respaldos nocturnos a Object Storage y despliegue desde GitHub Actions por
-SSH. Los archivos están en [`deploy/`](deploy) y el flujo en
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
-
-```mermaid
-flowchart LR
-    U[Navegador / widget] -->|443 TLS| C[Caddy<br/>panel + widget.js]
-    C -->|/api| B[backend :8080]
-    B --> D[(PostgreSQL + pgvector)]
-    A[Alloy] -->|:8081 métricas| B
-    B -->|OTLP| A
-    A --> G[Grafana Cloud]
-    T[backup.timer] -->|pg_dump| D
-    T --> O[OCI Object Storage]
-    GH[GitHub Actions] -->|SSH + imágenes de GHCR| C
-```
-
-Solo Caddy publica puertos (80 y 443). La base de datos, el puerto de gestión del backend y Alloy quedan en la red
-interna de Docker. Los secretos viven solo en la VM, en `/opt/supportchat/.env` y `secrets/`: GitHub guarda la llave
-SSH con la que despliega y nada más.
-
-1. **Cuenta y red.** Crea la cuenta de Oracle Cloud (pide tarjeta para verificar, pero no cobra lo que es Always
-   Free). En **Networking → Virtual Cloud Networks** usa el asistente *VCN with Internet Connectivity*. En la
-   *security list* de la subred pública agrega reglas de entrada desde `0.0.0.0/0` para TCP 80, TCP 443 y UDP 443.
-   SSH (22) ya viene abierto; GitHub Actions entra por ahí solo con llave.
-2. **VM.** En **Compute → Instances** crea una con imagen *Canonical Ubuntu 24.04* (aarch64) y forma
-   `VM.Standard.A1.Flex` con 4 OCPU y 24 GB (o 2 y 12), con disco de arranque de 100 GB (el gratuito llega a 200 GB).
-   Si quieres una IP fija, resérvala en **Networking → Reserved public IPs**. Si no, el temporizador de DuckDNS
-   actualiza el nombre solo. Oracle puede reclamar instancias A1 gratuitas que pasan 7 días casi sin uso; pasar la
-   cuenta a *Pay As You Go* lo evita y sigue sin costo dentro de los límites gratuitos.
-3. **Nombre.** En [duckdns.org](https://www.duckdns.org) crea un subdominio (p. ej. `misoporte.duckdns.org`) y copia el
-   token. Con un dominio propio, basta un registro A hacia la IP de la VM.
-4. **Respaldos.** En **Storage → Buckets** crea `supportchat-backups` (privado, Standard) y una regla de ciclo de vida
-   que borre los objetos con prefijo `postgres/` de más de 30 días. Para que la VM suba sin llaves, crea en
-   **Identity → Dynamic groups** el grupo `supportchat-vm` con `ALL {instance.id = '<OCID de la VM>'}` y esta política
-   en el compartment:
-
-   ```text
-   Allow dynamic-group supportchat-vm to read objectstorage-namespaces in tenancy
-   Allow dynamic-group supportchat-vm to manage objects in compartment <compartment> where target.bucket.name = 'supportchat-backups'
-   ```
-
-5. **Preparar la VM.** Crea la llave de despliegue y ejecuta el script de preparación. Instala Docker, abre 80 y 443
-   en el iptables que traen las imágenes de Oracle, crea el usuario `deploy`, genera las llaves JWT e instala los
-   temporizadores de respaldo y DuckDNS:
-
-   ```bash
-   ssh-keygen -t ed25519 -f deploy_key -N "" -C github-actions
-   scp -r deploy ubuntu@<IP>:/tmp/
-   ssh ubuntu@<IP> sudo bash /tmp/deploy/scripts/setup-vm.sh "\"$(cat deploy_key.pub)\""
-   ```
-
-6. **Configurar.** Completa `/opt/supportchat/.env` en la VM (`sudo -u deploy nano /opt/supportchat/.env`) a partir
-   de [`deploy/.env.example`](deploy/.env.example): dominio, contraseñas (`openssl rand -base64 24`),
-   `SECRETS_ENCRYPTION_KEY`, llaves de Anthropic y Voyage, `OCI_NAMESPACE` (`oci os ns get --auth instance_principal`)
-   y DuckDNS. Guarda fuera de la VM una copia de `SECRETS_ENCRYPTION_KEY` y de `secrets/`.
-7. **GitHub.** En **Settings → Secrets and variables → Actions** agrega los secretos `DEPLOY_HOST` (IP o nombre),
-   `DEPLOY_SSH_KEY` (contenido de `deploy_key`) y `DEPLOY_KNOWN_HOSTS` (salida de `ssh-keyscan -t ed25519 <IP>`;
-   compara la huella con la consola de la VM). Agrega también la variable `PUBLIC_DOMAIN`. Si creas el environment
-   `production` con revisores obligatorios, cada despliegue espera una aprobación.
-8. **Desplegar.** **Actions → deploy → Run workflow**. Desde ahí, cada push a `main` con la CI en verde se despliega
-   solo:
-   - construye las imágenes arm64 (el backend y `web`: Caddy con el panel y `widget.js` compilados para tu dominio);
-   - las publica en GHCR con el commit como etiqueta;
-   - copia compose, scripts y configuración a la VM;
-   - espera a que el backend esté sano (`docker compose up --wait`);
-   - comprueba que el panel, el widget y la API respondan.
-
-   Para volver atrás, ejecuta el flujo a mano con `image_tag` igual a los 12 primeros caracteres de un commit ya
-   desplegado.
-
-El widget se instala con `<script src="https://<tu-dominio>/widget.js" data-widget-key="..." async></script>`. Toma la
-API del mismo origen del script.
-
-**Respaldos.** `supportchat-backup.timer` corre cada noche a las 03:30 UTC:
-
-- `pg_dump` en formato custom, comprobado con `pg_restore --list`;
-- cifrado con [age](https://age-encryption.org) si defines `BACKUP_AGE_RECIPIENT`;
-- subido a `postgres/` en el bucket;
-- 7 días de copias también en la VM.
-
-Si pones `BACKUP_PING_URL` (de healthchecks.io, gratis), te avisa cuando una noche falta. Para restaurar:
-
-```bash
-sudo systemctl start supportchat-backup.service && journalctl -u supportchat-backup -n 20   # respaldo a mano
-sudo -u deploy /opt/supportchat/scripts/restore.sh postgres/supportchat-20261110T033000Z.dump  # desde el bucket
-```
-
-Prueba una restauración de vez en cuando en otra VM: un respaldo que nunca se restauró no está probado.
-
-### Monitoreo (Grafana Cloud gratis)
-
-El backend publica métricas de Prometheus en el puerto privado de Actuator (`:8081/actuator/prometheus` en `prod`;
-el puerto público responde 403 a `/actuator/**`) y envía trazas por OTLP cuando hay un colector configurado. En el
-servidor corre **Grafana Alloy** ([`docker/monitoring/alloy/config.alloy`](docker/monitoring/alloy/config.alloy)):
-lee esas métricas y las de la VM (CPU, memoria, disco), recibe las trazas y lo manda todo a Grafana Cloud. Las
-credenciales solo las tiene Alloy.
-
-| Métrica | Etiquetas | Qué mide |
-|---|---|---|
-| `supportchat_answer_duration_seconds` | `channel`, `outcome` | Tiempo de cada respuesta y si se respondió, no se sabía o falló |
-| `supportchat_llm_tokens_total` | `type`, `tier` | Tokens del modelo de lenguaje, por modelo elegido |
-| `supportchat_conversations_started_total` | `channel` | Conversaciones nuevas |
-| `supportchat_conversations_handoffs_total` | `channel`, `reason` | Traspasos a una persona (botón, lo pidió por escrito, agotó las preguntas) |
-| `supportchat_feedback_answers_total`, `supportchat_feedback_ratings` | `helpful` | 👍/👎 y calificaciones de 1 a 5 |
-| `supportchat_actions_runs_total` | `status` | Ejecuciones de acciones (pendiente, hecha, fallida, cancelada, rechazada...) |
-| `supportchat_actions_calls_seconds` | `target`, `outcome` | Llamadas a webhooks, Shopify o Zendesk |
-| `supportchat_channel_messages_received_total`, `supportchat_channel_deliveries_total` | `channel`, `outcome` | Mensajes recibidos y respuestas entregadas, rechazadas o reintentadas |
-| `supportchat_channel_mailbox_reads_total` | `outcome` | Lecturas de buzones |
-| `supportchat_rate_limit_rejections_total`, `supportchat_business_rejections_total` | `rule`, `code` | Peticiones limitadas y errores de negocio |
-
-Las etiquetas nunca llevan el workspace, el contacto ni el nombre de una acción: el número de series no crece con
-los clientes (el plan gratuito incluye 10 000) y no salen datos de los clientes. El consumo por workspace sigue en
-la página **Consumo**. Las trazas usan el 10 % de las peticiones (`TRACING_SAMPLING_PROBABILITY`), y cada línea de
-log lleva `[traceId,spanId]` para saltar del log a su traza.
-
-1. Crea una cuenta gratuita en Grafana Cloud. En **Connections → Add new connection → OpenTelemetry (OTLP)** genera
-   un token con permisos `metrics:write`, `traces:write` (y `rules:write` si cargarás las alertas con `mimirtool`).
-   De ahí salen `GRAFANA_CLOUD_OTLP_ENDPOINT` (`https://otlp-gateway-<región>.grafana.net/otlp`) y
-   `GRAFANA_CLOUD_OTLP_USER` (el ID de la instancia). En **Prometheus → Details** están
-   `GRAFANA_CLOUD_PROMETHEUS_URL` (`https://prometheus-<región>.grafana.net/api/prom/push`) y
-   `GRAFANA_CLOUD_PROMETHEUS_USER`.
-2. Pon esos valores y `GRAFANA_CLOUD_API_TOKEN` en el `.env` del servidor; el backend recibe
-   `OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318` (ver la sección de despliegue). Sin Alloy, el backend también
-   puede enviar directo: `OTEL_EXPORTER_OTLP_ENDPOINT` con la URL del gateway y
-   `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64 de usuario:token>`. Sin ninguna, no se envían trazas.
-3. Importa el tablero [`docker/monitoring/grafana-dashboard.json`](docker/monitoring/grafana-dashboard.json)
-   (Dashboards → New → Import) y carga las alertas desde **Alerting → Alert rules → Import** (sube el YAML) o con:
-
-```bash
-mimirtool rules load docker/monitoring/alerts.yml --address=<URL de Prometheus, sin /push> \
-  --id=<GRAFANA_CLOUD_PROMETHEUS_USER> --key=<token con rules:write>
-```
-
-Las [alertas](docker/monitoring/alerts.yml) avisan si el backend no responde, si más del 5 % de las peticiones dan
-5xx, si el pool de conexiones se agota, si fallan más del 10 % de las respuestas o el p95 pasa de 20 s, si se disparan
-los tokens, si un webhook o una integración falla, si las respuestas de un canal no llegan, si los buzones no se
-pueden leer, si hay una tormenta de 429 y si el disco o la memoria de la VM se acaban. El aviso (correo, Slack,
-Telegram) se configura en **Alerting → Contact points**. `promtool check rules` las valida (está en el comentario del
-archivo).
-
-### Prueba de carga
-
-[`loadtest/`](loadtest) trae un escenario de [k6](https://k6.io) y su propio entorno: base de datos, backend
-construido desde este código y k6 en una red privada, sin tocar tu base de desarrollo. Mide la plataforma (búsqueda,
-almacenamiento, streaming, RLS) con el modelo offline y embeddings locales, así que no gasta tokens ni mide la latencia
-de Anthropic o Voyage.
-
-```bash
-docker compose -f loadtest/docker-compose.yml up --build --abort-on-container-exit --exit-code-from k6
-```
-
-```bash
-docker compose -f loadtest/docker-compose.yml down -v
-```
-
-- **Visitantes:** abren el widget, inician una conversación y hacen dos preguntas, leyendo cada respuesta por SSE
-  hasta el evento `done`. Las conversaciones nuevas por segundo suben durante 1 minuto hasta `PEAK_RATE` (10 por
-  defecto), se mantienen `HOLD` (2m) y bajan en 30 s.
-- **Operadores:** 10 con la bandeja abierta, que la recargan cada 5 s.
-- **Umbrales** (si uno falla, el comando sale con error): menos de 1 % de errores, p95 de la configuración del widget
-  < 200 ms, de iniciar conversación < 300 ms, de la bandeja < 500 ms, de la respuesta completa < 1.5 s y más del 99 %
-  de respuestas terminadas.
-
-El resumen queda en la consola y completo en `loadtest/results/summary.json`. Para más carga:
-`PEAK_RATE=50 HOLD=1m docker compose -f loadtest/docker-compose.yml up ...` (en PowerShell, define antes
-`$env:PEAK_RATE=50`).
-
-Resultados en una laptop con Docker Desktop (backend con pool de 20 conexiones), todos los umbrales cumplidos:
-
-| | 10 conversaciones/s | 50 conversaciones/s |
-|---|---|---|
-| Peticiones | 7 029 (32/s) | 20 261 (96/s) |
-| Errores | 0 % | 0 % |
-| Respuestas terminadas | 3 302 de 3 302 | 9 918 de 9 918 |
-| Configuración del widget (p95) | 4 ms | 3 ms |
-| Iniciar conversación (p95) | 7 ms | 32 ms |
-| Respuesta completa (p50 / p95 / p99) | 17 / 26 / 42 ms | 17 / 279 / 652 ms |
-| Primer evento de la respuesta (p95) | 9 ms | 52 ms |
-| Bandeja del operador (p95) | 20 ms | 41 ms |
-
-Con Claude real, cada respuesta tarda lo que tarde el modelo (segundos), pero el backend lo aguanta: el stream ocupa
-un hilo virtual, no uno del sistema, y la conexión a la base de datos se suelta antes de llamar al modelo. Lo que
-limita en producción es el plan de Anthropic, no la VM.
+### Más documentación
+
+- [Integraciones y canales](docs/integrations.md): acciones propias, Shopify y Zendesk, WhatsApp, correo, Messenger e Instagram, y avisos al dueño.
+- [API: flujo de ejemplo y permisos](docs/api.md): un recorrido con `curl` y quién puede llamar cada endpoint.
+- [Operación](docs/operations.md): producción, despliegue en Oracle Cloud, monitoreo y prueba de carga.
+- [Contrato OpenAPI](docs/openapi.json): la API de operadores tal como la sirve el backend. `OpenApiContractIntegrationTest`
+  falla si la API cambia sin actualizarlo (`./mvnw test -Dtest=OpenApiContractIntegrationTest -Dopenapi.update=true`);
+  el panel genera `src/api/openapi.ts` con `npm run api:types` y `src/api/contract.ts` hace fallar a `tsc` si sus tipos
+  ya no coinciden con la API, también si un campo que puede llegar nulo es uno que el panel da por presente. Los
+  campos de respuesta que pueden ser nulos se marcan `@Nullable` (JSpecify) y las pruebas fallan si otro llega nulo.
 
 ## Pruebas
 
@@ -702,7 +284,7 @@ limita en producción es el plan de Anthropic, no la VM.
 cd backend && ./mvnw verify
 ```
 
-532 pruebas: unitarias de dominio, reglas de arquitectura y módulos, integración contra **PostgreSQL real con
+575 pruebas: unitarias de dominio, reglas de arquitectura y módulos, integración contra **PostgreSQL real con
 pgvector** (Testcontainers) conectando con el rol restringido para que RLS se ejercite de verdad, y del adaptador de
 Claude contra un servidor SSE local. Cubren el flujo de autenticación con rotación y reutilización de tokens, el
 aislamiento entre workspaces, la ingesta y búsqueda, y el chat con streaming, citas y "no sé", las preguntas difíciles (👎, "no entendí", repetir la pregunta, enseñar la respuesta y que la siguiente ya la use, el reporte por modelo), el traspaso a humano (permisos, preguntas reenviadas, límites), las
@@ -742,12 +324,12 @@ cd widget && npm test
 cd panel && npm run lint && npm test
 ```
 
-Widget (30 pruebas): lector SSE (eventos partidos entre fragmentos, caracteres multibyte, finales de línea `\r\n` y
+Widget (33 pruebas): lector SSE (eventos partidos entre fragmentos, caracteres multibyte, finales de línea `\r\n` y
 `\r`), citas, y el widget completo con una API simulada: streaming, reintento con token expirado, límite alcanzado,
 historial tras recargar, el traspaso a humano con mensajes en vivo, recuperar lo que el equipo escribió mientras se
 reconectaba sin repetir nada, el cierre por el equipo, confirmar o rechazar acciones (también tras recargar, ya
 atendidas o sin red), el aviso de que lo atenderá una persona, las opiniones (👍/👎 que se pueden cambiar, la calificación que se pide una
-vez y también tras el cierre, errores de red), los textos en el idioma del navegador y que el texto del servidor nunca se interprete como HTML. Panel (89 pruebas): una sola
+vez y también tras el cierre, errores de red), los textos en el idioma del navegador y que el texto del servidor nunca se interprete como HTML. Panel (96 pruebas): una sola
 renovación para llamadas simultáneas, reintento tras 401, errores RFC 9457, login, restauración de sesión, permisos
 por rol, aceptar invitaciones, tomar y responder conversaciones, aplicar eventos en vivo sin duplicados, crear acciones y ver su secreto,
 conectar WhatsApp, el correo (servidores de Gmail por defecto, error de lectura, contraseña que se conserva), Messenger e
@@ -757,7 +339,20 @@ pagos** (contratar en Stripe, cambiar o cancelar, aviso de pago fallido, portal,
 y las opiniones en la conversación, los documentos sugeridos (redactar, subir y resolver sus preguntas), las preguntas difíciles (enseñar su respuesta, sin botón para agentes), el Playground (streaming, inspector, historial,
 límite del plan, oculto para agentes), arrastrar archivos con su barra de progreso y la etapa de indexado, importar un
 sitio web, el modelo de cada número de WhatsApp y **Avisos y escalamiento** (guardar números y plantilla, avisos recientes
-con su entrega, aviso sin WhatsApp conectado, cliente molesto en la bandeja) los motivos de error de documentos y páginas en español, los clientes y su ficha, el filtro y la corrección de temas, los seguimientos y sus plantillas (sin edición para agentes), la administración de la plataforma (oculta para los demás) y el aviso de workspace suspendido. La CI corre las tres partes y falla si `widget.js` supera 30 KB.
+con su entrega, aviso sin WhatsApp conectado, cliente molesto en la bandeja) los motivos de error de documentos y páginas en español, los clientes y su ficha, el filtro y la corrección de temas, los seguimientos y sus plantillas (sin edición para agentes), la administración de la plataforma (oculta para los demás) y el aviso de workspace suspendido. La CI corre las tres partes y falla si `widget.js` supera 32 KB.
+
+```bash
+cd e2e && npm ci && npx playwright install chromium && npm test
+```
+
+De punta a punta (Playwright, 5 flujos): un negocio se registra desde el panel, sube un documento y permite su sitio;
+en ese sitio el widget responde con el dato del documento y lo cita, el cliente califica y el panel muestra la
+conversación con su opinión; una pregunta fuera de los documentos recibe "no tengo información" y aparece en
+**Preguntas sin respuesta**; el cliente pide una persona, la bandeja lo muestra en vivo, el operador la toma, responde
+y la cierra, y el widget lo ve sin recargar; cerrar sesión, contraseña equivocada y volver a la página pedida; y el
+widget en un sitio no permitido. Playwright levanta el backend (perfil dev, modelo offline), el panel y la página de
+prueba del widget en los puertos 8097, 5183 y 5184 para no chocar con los de desarrollo; si ya están corriendo los
+reutiliza. La CI lo corre después de las otras tres partes y guarda el reporte si falla.
 
 ## Hoja de ruta
 
