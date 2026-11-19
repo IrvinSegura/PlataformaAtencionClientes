@@ -1,0 +1,69 @@
+# A throwaway environment for the load test: its own database and backend (built from this checkout) and k6, on a
+# private network with no published ports, so it never touches the development database. From the repository root:
+#   docker compose -f loadtest/docker-compose.yml up --build --abort-on-container-exit --exit-code-from k6
+#   docker compose -f loadtest/docker-compose.yml down -v
+# k6's full summary lands in loadtest/results/summary.json.
+name: supportchat-loadtest
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: supportchat
+      POSTGRES_USER: supportchat_owner
+      POSTGRES_PASSWORD: load-owner-password
+      DB_APP_USER: supportchat_app
+      DB_APP_PASSWORD: load-app-password
+    command: ["postgres", "-c", "shared_buffers=512MB", "-c", "max_connections=60"]
+    volumes:
+      - ../deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supportchat_owner -d supportchat"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ../backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://db:5432/supportchat
+      DB_OWNER_USER: supportchat_owner
+      DB_OWNER_PASSWORD: load-owner-password
+      DB_APP_USER: supportchat_app
+      DB_APP_PASSWORD: load-app-password
+      DB_POOL_SIZE: "20"
+      # The offline model and hashing embeddings: the run measures the platform, not Anthropic's or Voyage's latency
+      CHAT_MODEL_PROVIDER: offline
+      EMBEDDING_PROVIDER: hashing
+      # Every virtual visitor comes from k6's one address, and one workspace answers them all: the per-IP limits and
+      # the free plan's 100 answers a month would stop the run long before it measures anything
+      SPRING_APPLICATION_JSON: >-
+        {"supportchat":{"rate-limit":{"enabled":false},
+        "billing":{"plans":{"FREE":{"included":{"ANSWERS":100000000}}}}}}
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\r\n\r\n' >&3 && grep -q '"UP"' <&3
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  k6:
+    image: grafana/k6:1.0.0
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      PEAK_RATE: ${PEAK_RATE:-10}
+      HOLD: ${HOLD:-2m}
+    command: ["run", "/scripts/chat.js"]
+    volumes:
+      - ./chat.js:/scripts/chat.js:ro
+      - ./results:/results

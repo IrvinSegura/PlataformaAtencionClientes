@@ -1,8 +1,8 @@
 # Alert rules in Prometheus format. Grafana Cloud imports them in Alerting -> Alert rules -> Import, or loads them
 # into its hosted Prometheus with
-#   mimirtool rules load docker/monitoring/alerts.yml --address=<Prometheus URL without /push> --id=<user> --key=<token>
+#   mimirtool rules load deploy/monitoring/alerts.yml --address=<Prometheus URL without /push> --id=<user> --key=<token>
 # Grafana Alerting sends them to its contact points (email, Slack, Telegram...).
-# Check them locally with: docker run --rm -v "$PWD/docker/monitoring:/m" --entrypoint promtool prom/prometheus check rules /m/alerts.yml
+# Check them locally with: docker run --rm -v "$PWD/deploy/monitoring:/m" --entrypoint promtool prom/prometheus check rules /m/alerts.yml
 groups:
   - name: support-chat-availability
     rules:

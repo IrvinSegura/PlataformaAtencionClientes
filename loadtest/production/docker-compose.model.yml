@@ -1,0 +1,43 @@
+# Answers that take seconds, as Claude's do: the backend runs its real Anthropic and Voyage clients against
+# model-stub/stub.py, which streams like the Messages API with Claude's timing. Added to docker-compose.yml:
+#   docker compose -f loadtest/production/docker-compose.yml -f loadtest/production/docker-compose.model.yml ...
+# FIRST_TOKEN_MS, TOKENS_PER_SECOND and EMBED_MS shape the timing; ANSWER_P95 the threshold k6 holds answers to.
+x-model: &model
+  CHAT_MODEL_PROVIDER: anthropic
+  # Placeholders the stub never checks; no request leaves the private network
+  ANTHROPIC_API_KEY: stub-key
+  SUPPORTCHAT_CONVERSATIONS_CHATMODEL_ANTHROPIC_BASEURL: http://model:8080
+  EMBEDDING_PROVIDER: voyage
+  VOYAGE_API_KEY: stub-key
+  SUPPORTCHAT_KNOWLEDGE_EMBEDDING_VOYAGE_BASEURL: http://model:8080
+  # The stub's embeddings spread their scores like the offline hashing ones, not like Voyage's
+  ANSWER_MIN_SIMILARITY: "0.2"
+
+services:
+  model:
+    image: python:3.13-alpine
+    command: ["python", "/stub/stub.py"]
+    environment:
+      FIRST_TOKEN_MS: ${FIRST_TOKEN_MS:-800-2000}
+      TOKENS_PER_SECOND: ${TOKENS_PER_SECOND:-60}
+      EMBED_MS: ${EMBED_MS:-100-300}
+    volumes:
+      - ./model-stub:/stub:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  backend-a:
+    depends_on:
+      model:
+        condition: service_healthy
+    environment: *model
+
+  backend-b:
+    environment: *model
+
+  k6:
+    environment:
+      ANSWER_P95: ${ANSWER_P95:-6000}

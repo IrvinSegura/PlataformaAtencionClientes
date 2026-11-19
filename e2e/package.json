@@ -1,0 +1,17 @@
+{
+  "name": "support-chat-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end flows across the panel, the widget and the backend, in a real browser",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "typescript": "6.0.3"
+  }
+}

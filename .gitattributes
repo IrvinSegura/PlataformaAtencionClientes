@@ -4,5 +4,4 @@
 backend/mvnw text eol=lf
 # Copied as they are to the Linux server (systemd units, Caddyfile, compose, collector configuration)
 deploy/** text eol=lf
-docker/** text eol=lf
 *.cmd text eol=crlf
