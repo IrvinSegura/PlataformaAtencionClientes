@@ -1,0 +1,57 @@
+name: answer-quality
+
+# Measures the real language model on the evaluation cases. Separate from ci because it costs money and needs API
+# keys, which pull requests from forks never get: it runs weekly and on demand.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+    steps:
+      - name: Check the API key is configured
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Add the ANTHROPIC_API_KEY repository secret to run this evaluation"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      # Voyage embeddings when that key exists too; otherwise the offline embeddings, which still measure the model
+      - name: Evaluate
+        run: |
+          if [ -n "$VOYAGE_API_KEY" ]; then export EMBEDDING_PROVIDER=voyage; fi
+          ./mvnw -B test -Dtest=AnswerQualityEvaluationTest -Dsurefire.failIfNoSpecifiedTests=false \
+            -Deval.min-outcome-accuracy=0.9 -Deval.min-fact-recall=0.9 -Deval.min-citation-accuracy=0.9
+        env:
+          CHAT_MODEL_PROVIDER: anthropic
+
+      - name: Report
+        if: always()
+        run: |
+          if [ -f target/eval/answer-quality.md ]; then cat target/eval/answer-quality.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: answer-quality
+          path: backend/target/eval
