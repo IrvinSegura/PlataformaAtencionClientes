@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Widget demo</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; line-height: 1.5; }
+      code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; }
+      input { width: 100%; padding: 8px; font: inherit; }
+    </style>
+  </head>
+  <body>
+    <h1>Página de prueba del widget</h1>
+    <p>
+      Simula el sitio de un cliente. En el panel, agrega <code>http://localhost:5174</code> a los orígenes permitidos
+      y abre esta página con <code>?key=TU_WIDGET_KEY</code>.
+    </p>
+    <form>
+      <label for="key">Widget key</label>
+      <input id="key" name="key" autocomplete="off" />
+    </form>
+    <script>
+      // Local development only: adds the same tag the panel's embed snippet has, with the key from the address bar
+      const params = new URLSearchParams(location.search);
+      const key = params.get('key');
+      document.getElementById('key').value = key ?? '';
+      if (key) {
+        const script = document.createElement('script');
+        script.src = '/widget.js';
+        script.dataset.widgetKey = key;
+        script.dataset.apiUrl = params.get('api') ?? 'http://localhost:8080';
+        document.body.append(script);
+      }
+    </script>
+  </body>
+</html>
