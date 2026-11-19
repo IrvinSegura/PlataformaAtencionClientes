@@ -1,0 +1,202 @@
+# Production on one VM (Oracle Cloud Always Free, Ampere A1: arm64, up to 4 OCPU and 24 GB). The deploy workflow
+# copies this folder to /opt/supportchat; secrets live only there, in .env and secrets/ (see deploy/.env.example).
+# Only Caddy publishes ports; the database, the backend's management port and the collector stay inside the network.
+name: supportchat
+
+services:
+  db:
+    # PostgreSQL with pgvector; the image is multi-arch
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: supportchat
+      POSTGRES_USER: ${DB_OWNER_USER:?}
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:?}
+      DB_APP_USER: ${DB_APP_USER:?}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?}
+    # Sized for ~4 GB of the VM's memory; the backend takes about as much again
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=60
+      - -c
+      - log_min_duration_statement=1000
+    shm_size: 256mb
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # Creates the restricted application role on the first start of an empty volume
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d supportchat"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 5g
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER:?}/support-chat-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    # More than one needs the replicas profile (redis) and RATE_LIMIT_STORE=redis; see docs/operations.md
+    deploy:
+      replicas: ${BACKEND_REPLICAS:-1}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+        required: false
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://db:5432/supportchat
+      DB_OWNER_USER: ${DB_OWNER_USER}
+      DB_OWNER_PASSWORD: ${DB_OWNER_PASSWORD}
+      DB_APP_USER: ${DB_APP_USER}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20}
+      # One instance counts its rate limits in memory; with more, redis shares them (REDIS_URL=redis://redis:6379)
+      RATE_LIMIT_STORE: ${RATE_LIMIT_STORE:-memory}
+      REDIS_URL: ${REDIS_URL:-}
+      JWT_PRIVATE_KEY_LOCATION: file:/run/secrets/jwt-private.pem
+      JWT_PUBLIC_KEY_LOCATION: file:/run/secrets/jwt-public.pem
+      # The panel is served from the same domain; add other origins separated by commas if needed
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://${DOMAIN}}
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:?}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-voyage}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      CHAT_MODEL_PROVIDER: ${CHAT_MODEL_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-5-5}
+      ANTHROPIC_SIMPLE_MODEL: ${ANTHROPIC_SIMPLE_MODEL:-claude-haiku-5-5}
+      MODEL_ROUTING_ENABLED: ${MODEL_ROUTING_ENABLED:-true}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      BILLING_RETURN_URL: https://${DOMAIN}/billing
+      PANEL_URL: https://${DOMAIN}
+      LEGAL_OPERATOR_NAME: ${LEGAL_OPERATOR_NAME:-}
+      LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:?}
+      LEGAL_TERMS_VERSION: ${LEGAL_TERMS_VERSION:-}
+      LEGAL_TERMS_UPDATED: ${LEGAL_TERMS_UPDATED:-}
+      LEGAL_JURISDICTION: ${LEGAL_JURISDICTION:-}
+      CUSTOMER_MEMORY_ENABLED: ${CUSTOMER_MEMORY_ENABLED:-true}
+      CUSTOMER_MEMORY_LOOK_BACK: ${CUSTOMER_MEMORY_LOOK_BACK:-30d}
+      PLATFORM_ADMIN_USER_IDS: ${PLATFORM_ADMIN_USER_IDS:-}
+      DEMO_WORKSPACE_ID: ${DEMO_WORKSPACE_ID:-}
+      DEMO_WIDGET_KEY: ${DEMO_WIDGET_KEY:-}
+      DEMO_DAILY_ANSWERS: ${DEMO_DAILY_ANSWERS:-300}
+      # Traces go to Alloy when the monitoring profile runs; empty sends none
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-0.1}
+      DEPLOYMENT_ENVIRONMENT: production
+    secrets:
+      - jwt-private.pem
+      - jwt-public.pem
+    healthcheck:
+      # The image has no curl: bash asks the private management port directly
+      test:
+        - CMD
+        - bash
+        - -c
+        - exec 3<>/dev/tcp/127.0.0.1/8081 && printf 'GET /actuator/health/readiness HTTP/1.0\r\n\r\n' >&3 && grep -q '"UP"' <&3
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    mem_limit: 5g
+    logging: *logging
+
+  web:
+    # Caddy with the panel and widget.js built in; it gets and renews the TLS certificate by itself
+    image: ghcr.io/${GHCR_OWNER}/support-chat-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      DOMAIN: ${DOMAIN:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+      # The widget key of the public demo at /demo; empty shows the page without it
+      DEMO_WIDGET_KEY: ${DEMO_WIDGET_KEY:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    mem_limit: 256m
+    logging: *logging
+
+  redis:
+    # The rate limits that several backend replicas share; set COMPOSE_PROFILES=replicas in .env to run it. Counters
+    # only: nothing is saved to disk, and keys expire on their own
+    profiles: [replicas]
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+      - --maxmemory
+      - 64mb
+      - --maxmemory-policy
+      - allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    mem_limit: 128m
+    logging: *logging
+
+  alloy:
+    # Metrics and traces to Grafana Cloud; set COMPOSE_PROFILES=monitoring in .env to run it. The variables are not
+    # required here because compose reads them even while the profile is off
+    profiles: [monitoring]
+    image: grafana/alloy:v1.9.1
+    restart: unless-stopped
+    command:
+      - run
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      DEPLOYMENT_ENVIRONMENT: production
+      GRAFANA_CLOUD_PROMETHEUS_URL: ${GRAFANA_CLOUD_PROMETHEUS_URL:-}
+      GRAFANA_CLOUD_PROMETHEUS_USER: ${GRAFANA_CLOUD_PROMETHEUS_USER:-}
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:-}
+      GRAFANA_CLOUD_OTLP_USER: ${GRAFANA_CLOUD_OTLP_USER:-}
+      GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN:-}
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      # The host's metrics, read-only
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro,rslave
+    mem_limit: 512m
+    logging: *logging
+
+secrets:
+  jwt-private.pem:
+    file: ./secrets/jwt-private.pem
+  jwt-public.pem:
+    file: ./secrets/jwt-public.pem
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
+  alloy-data:

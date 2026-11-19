@@ -1,0 +1,11 @@
+# The build only needs the frontends' sources and this folder
+**
+!deploy/web/Caddyfile
+!deploy/web/demo/
+!panel/
+!widget/
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
