@@ -1,0 +1,32 @@
+# The API part of deploy/web/Caddyfile, spread over two backend instances. Caddy signs its own certificate for the
+# name "web" (k6 skips verifying it). Unlike production it trusts X-Forwarded-For from the private network, so each
+# virtual visitor of k6 can come from an address of its own, as real visitors do.
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+https://web {
+	tls internal
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy backend-a:8080 backend-b:8080 {
+			lb_policy round_robin
+			# An instance that stops answering leaves the rotation, and its requests go to the other one
+			lb_try_duration 5s
+			fail_duration 30s
+			health_uri /actuator/health/readiness
+			health_port 8081
+			health_interval 2s
+			# Answers and live updates are event streams: every chunk goes out at once
+			flush_interval -1
+		}
+	}
+}
