@@ -55,7 +55,6 @@ Messenger e Instagram, con traspaso a humano en vivo, acciones sobre sus sistema
 - [Pruebas](#pruebas)
 - [Despliegue y operación](#despliegue-y-operación)
 - [Estructura del repositorio](#estructura-del-repositorio)
-- [Hoja de ruta](#hoja-de-ruta)
 - [Documentación](#documentación)
 
 ## En pocas palabras
@@ -643,20 +642,6 @@ e2e/       pruebas de punta a punta con Playwright
 loadtest/  prueba de carga con k6, también contra una copia de producción
 scripts/   configuración única desde tu máquina (Stripe)
 ```
-
-## Hoja de ruta
-
-- [x] **Fase 1:** backend, widget embebible y panel de operadores.
-- [x] **Fase 2:** traspaso a humano en vivo, preguntas sin respuesta, evaluaciones de calidad en CI, equipo con
-  invitaciones y cambio de workspace.
-- [x] **Fase 3:** acciones con tool use y confirmación, canal de WhatsApp, medición de consumo por workspace y elección
-  del modelo según la pregunta.
-- [x] **Fase 4:** cobro con Stripe, resultados y opiniones, widget en el idioma del visitante, documentos sugeridos,
-  correo, Messenger e Instagram, Shopify y Zendesk, monitoreo con Grafana Cloud, despliegue en Oracle Cloud y prueba de
-  carga.
-- [ ] **Fase 5 (en curso):** memoria y ficha del cliente, temas con filtro, seguimientos con plantillas,
-  administración de la plataforma con suspensión y demo pública con Claude Haiku. Pendiente: calibrar los umbrales
-  `DIFFICULT_*` y `ROUTING_*` con semanas de datos reales.
 
 ## Documentación
 
