@@ -5,6 +5,7 @@ name: deploy
 # section "Despliegue en Oracle Cloud":
 #   secrets    DEPLOY_HOST, DEPLOY_SSH_KEY (private key of the VM's deploy user), DEPLOY_KNOWN_HOSTS (ssh-keyscan)
 #   variable   PUBLIC_DOMAIN (e.g. mysupport.duckdns.org)
+# Until PUBLIC_DOMAIN exists the run after ci is skipped instead of failing; a manual run still fails and says why.
 # The application's secrets never pass through GitHub: they live in /opt/supportchat/.env on the VM.
 
 on:
@@ -31,7 +32,8 @@ jobs:
   images:
     if: >-
       (github.event_name == 'workflow_dispatch' && inputs.image_tag == '')
-      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+          && vars.PUBLIC_DOMAIN != '')
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:

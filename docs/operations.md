@@ -133,7 +133,8 @@ SSH con la que despliega y nada más.
    y DuckDNS. Guarda fuera de la VM una copia de `SECRETS_ENCRYPTION_KEY` y de `secrets/`.
 7. **GitHub.** En **Settings → Secrets and variables → Actions** agrega los secretos `DEPLOY_HOST` (IP o nombre),
    `DEPLOY_SSH_KEY` (contenido de `deploy_key`) y `DEPLOY_KNOWN_HOSTS` (salida de `ssh-keyscan -t ed25519 <IP>`;
-   compara la huella con la consola de la VM). Agrega también la variable `PUBLIC_DOMAIN`. Si creas el environment
+   compara la huella con la consola de la VM). Agrega también la variable `PUBLIC_DOMAIN`; mientras no exista, el
+   despliegue automático después de la CI se salta en lugar de fallar. Si creas el environment
    `production` con revisores obligatorios, cada despliegue espera una aprobación.
 8. **Desplegar.** **Actions → deploy → Run workflow**. Desde ahí, cada push a `main` con la CI en verde se despliega
    solo:
